@@ -1,2 +1,2 @@
 # Zona-Vermelha
-Repertório para desenvolvimento da aplicação de Conclusão de curso.
+Repertório para desenvolvimento da aplicação para a Conclusão de curso de Desenvolvimento de Sistesma.

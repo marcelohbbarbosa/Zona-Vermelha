@@ -3,5 +3,5 @@ Repertório para desenvolvimento da aplicação para a Conclusão de curso de De
 
 Resenha = on
 if Resenha on(
-Delet systen 32
+Delete systen 32
 )

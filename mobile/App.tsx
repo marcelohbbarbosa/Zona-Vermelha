@@ -1,15 +1,6 @@
-import { View, Text } from "react-native";
+import Login from "./src/screens/login";
 
 export default function App() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text>Zona Vermelha TCC</Text>
-    </View>
-  );
+
+  return <Login />;
 }

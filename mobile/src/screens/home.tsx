@@ -97,6 +97,13 @@ export default function Home({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.button}
+            onPress={() => navigation.navigate("Comentarios")}
+          >
+            <Text style={styles.buttonText}>Comentarios</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.button}
             onPress={() => navigation.navigate("Sobre")}
           >
             <Text style={styles.buttonText}>Sobre</Text>
@@ -167,7 +174,9 @@ const styles = StyleSheet.create({
 
   buttonsContainer: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "center",
     paddingHorizontal: 20,
   },
 

@@ -25,7 +25,7 @@ export default function Login() {
 
     <View style={styles.container}>
 
-      {/*Cabeçalho*/}
+      {/* TOPO VERMELHO */}
       <View style={styles.topo}>
 
         <Image
@@ -41,12 +41,12 @@ export default function Login() {
     <Path
       fill="#F8F8FF"
       d="
-        M-320,320
-        L25,320
-        C640,191,340,0,960,1
-        L1440,0
-        L1440,3200
-        L-320,3200
+        M0,960
+        L85,200
+        C640,191,340,0,1000,1
+        L2400,10
+        L2400,320
+        L0,3200
         Z
       "
     />
@@ -111,8 +111,8 @@ const styles = StyleSheet.create({
 },
 
   logo: {
-    width: 375,
-    height: 225,
+    width: 450,
+    height: 250,
     resizeMode: "contain",
     alignSelf: "auto"
   },
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   formulario: {
     flex: 1,
     padding: 24,
-    marginTop: 'auto',
+    marginTop: 20,
   },
 
   titulo: {
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   botao: {
     backgroundColor: "#8B0000",
     padding: 18,
-    borderRadius: 25,
+    borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
   },

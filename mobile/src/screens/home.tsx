@@ -97,7 +97,7 @@ export default function Home({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.button}
-            onPress={() => navigation.navigate("about")}
+            onPress={() => navigation.navigate("Sobre")}
           >
             <Text style={styles.buttonText}>Sobre</Text>
           </TouchableOpacity>

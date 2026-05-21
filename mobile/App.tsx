@@ -6,6 +6,7 @@ import Contatos from "./src/screens/contact";
 import Login from "./src/screens/login";
 import Register from "./src/screens/register";
 import Sobre from "./src/screens/about";
+import Comentarios from "./src/screens/comments";
 
 const Stack = createNativeStackNavigator();
 
@@ -40,6 +41,11 @@ export default function App() {
         <Stack.Screen
           name="Sobre"
           component={Sobre}
+        />
+
+        <Stack.Screen
+          name="Comentarios"
+          component={Comentarios}
         />
       </Stack.Navigator>
     </NavigationContainer>

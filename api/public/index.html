@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comentarios - Zonas de Risco</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #1f2933;
+    }
+
+    header {
+      background: #b91c1c;
+      color: white;
+      padding: 24px;
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+    }
+
+    header p {
+      margin: 0;
+      opacity: 0.9;
+    }
+
+    main {
+      width: min(1000px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+    }
+
+    section {
+      background: white;
+      border: 1px solid #d9e2ec;
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      margin-bottom: 14px;
+      padding: 10px;
+      border: 1px solid #bcccdc;
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    button {
+      border: 0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .primary {
+      width: 100%;
+      background: #b91c1c;
+      color: white;
+    }
+
+    .secondary {
+      background: #e5e7eb;
+      color: #1f2933;
+    }
+
+    .danger {
+      background: #991b1b;
+      color: white;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .comment-card {
+      border: 1px solid #d9e2ec;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: #ffffff;
+    }
+
+    .comment-card h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .comment-card p {
+      margin: 0;
+      line-height: 1.45;
+    }
+
+    .date {
+      display: block;
+      margin-top: 8px;
+      color: #52606d;
+      font-size: 13px;
+    }
+
+    .empty {
+      color: #52606d;
+      background: #f8fafc;
+      border: 1px dashed #bcccdc;
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    @media (max-width: 760px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Zonas de Risco</h1>
+    <p>Template simples para comentarios sobre pontos de risco da cidade.</p>
+  </header>
+
+  <main>
+    <section>
+      <h2 id="form-title">Novo comentario</h2>
+
+      <form id="comment-form">
+        <input type="hidden" id="comment-id" />
+
+        <label for="zona">Zona de risco</label>
+        <input id="zona" name="zona" placeholder="Ex: Centro" required />
+
+        <label for="comentario">Comentario</label>
+        <textarea id="comentario" name="comentario" placeholder="Descreva o risco observado" required></textarea>
+
+        <button class="primary" type="submit">Salvar comentario</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Comentarios cadastrados</h2>
+      <div id="comments-list" class="empty">Nenhum comentario cadastrado ainda.</div>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("comment-form");
+    const title = document.getElementById("form-title");
+    const idInput = document.getElementById("comment-id");
+    const zonaInput = document.getElementById("zona");
+    const comentarioInput = document.getElementById("comentario");
+    const list = document.getElementById("comments-list");
+
+    async function carregarComentarios() {
+      const resposta = await fetch("/comentarios");
+      const comentarios = await resposta.json();
+
+      if (comentarios.length === 0) {
+        list.className = "empty";
+        list.textContent = "Nenhum comentario cadastrado ainda.";
+        return;
+      }
+
+      list.className = "";
+      list.innerHTML = "";
+
+      comentarios.forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "comment-card";
+
+        const data = new Date(item.dataCriacao).toLocaleString("pt-BR");
+
+        card.innerHTML = `
+          <h3>${item.zona}</h3>
+          <p>${item.comentario}</p>
+          <span class="date">Criado em: ${data}</span>
+          <div class="actions">
+            <button class="secondary" type="button">Editar</button>
+            <button class="danger" type="button">Excluir</button>
+          </div>
+        `;
+
+        const [editButton, deleteButton] = card.querySelectorAll("button");
+
+        editButton.addEventListener("click", () => editarComentario(item));
+        deleteButton.addEventListener("click", () => deletarComentario(item.id));
+
+        list.appendChild(card);
+      });
+    }
+
+    function editarComentario(item) {
+      idInput.value = item.id;
+      zonaInput.value = item.zona;
+      comentarioInput.value = item.comentario;
+      title.textContent = "Editar comentario";
+    }
+
+    async function deletarComentario(id) {
+      await fetch(`/comentarios/${id}`, {
+        method: "DELETE"
+      });
+
+      limparFormulario();
+      carregarComentarios();
+    }
+
+    function limparFormulario() {
+      idInput.value = "";
+      form.reset();
+      title.textContent = "Novo comentario";
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const id = idInput.value;
+      const dados = {
+        zona: zonaInput.value,
+        comentario: comentarioInput.value
+      };
+
+      const url = id ? `/comentarios/${id}` : "/comentarios";
+      const method = id ? "PUT" : "POST";
+
+      await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(dados)
+      });
+
+      limparFormulario();
+      carregarComentarios();
+    });
+
+    carregarComentarios();
+  </script>
+</body>
+</html>

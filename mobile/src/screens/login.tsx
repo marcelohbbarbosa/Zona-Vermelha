@@ -9,6 +9,8 @@ import {
   Image,
 } from "react-native";
 
+import Svg, { Path } from "react-native-svg";
+
 export default function Login() {
 
   const [email, setEmail] = useState("");
@@ -27,9 +29,28 @@ export default function Login() {
       <View style={styles.topo}>
 
         <Image
-          source={require("../../assets/images/name.png")}
+          source={require("../../assets/images/Name.png")}
           style={styles.logo}
         />
+        <Svg
+    height="100"
+    width="100%"
+    viewBox="0 0 1440 320"
+    style={styles.curva}
+  >
+    <Path
+      fill="#F8F8FF"
+      d="
+        M0,960
+        L85,200
+        C640,191,340,0,1000,1
+        L2400,10
+        L2400,320
+        L0,3200
+        Z
+      "
+    />
+  </Svg>
 
       </View>
 
@@ -79,16 +100,19 @@ const styles = StyleSheet.create({
   },
 
   topo: {
-    height: 270,
-    backgroundColor: "#8B0000",
-    justifyContent: "center",
-    alignItems: "center"
+  backgroundColor: "#8B0000",
+  alignItems: "center",
+  paddingTop: 80,
+},
 
-  },
+  curva: {
+  width: "auto",
+  marginTop: "auto",
+},
 
   logo: {
-    width: 350,
-    height: 350,
+    width: 450,
+    height: 250,
     resizeMode: "contain",
     alignSelf: "auto"
   },

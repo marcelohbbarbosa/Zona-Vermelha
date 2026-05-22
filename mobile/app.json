@@ -21,10 +21,16 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.marcelohbatistabarbosa.mobile"
     },
     "web": {
       "favicon": "./assets/images/Icon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "809a8a0e-fdd0-42a4-9036-3742e96c5a0c"
+      }
     }
   }
 }

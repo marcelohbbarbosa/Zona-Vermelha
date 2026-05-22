@@ -22,10 +22,7 @@ type Comentario = {
 };
 
 const API_BASE_URL =
-  Platform.select({
-    android: "http://10.0.2.2:3000",
-    default: "http://localhost:3000",
-  }) ?? "http://localhost:3000";
+  "https://zona-vermelha-api.onrender.com";
 
 export default function Comentarios({ navigation }: any) {
   const [comentarios, setComentarios] = useState<Comentario[]>([]);

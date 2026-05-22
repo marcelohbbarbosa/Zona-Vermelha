@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "Zona Vermelha",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,24 +8,24 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/Icon.png",
+      "image": "./assets/images/Name.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#b71c1c"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/Icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#b71c1c"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.marcelohbatistabarbosa.mobile"
     },
     "web": {
-      "favicon": "./assets/images/Icon.png"
+      "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {

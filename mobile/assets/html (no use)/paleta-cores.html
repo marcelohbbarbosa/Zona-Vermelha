@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Paleta de Cores</title>
+    <style>
+      :root {
+        --ink: #111827;
+        --mist: #f8f8ff;
+        --page: #f4f6fb;
+        --text: #111827;
+        --muted: #5f6675;
+        --line: #d9deea;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        color: var(--text);
+        background: var(--page);
+      }
+
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 40px 0;
+      }
+
+      header {
+        display: grid;
+        gap: 14px;
+        margin-bottom: 32px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 6vw, 4.75rem);
+        line-height: 0.95;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: clamp(1.45rem, 3vw, 2.4rem);
+        letter-spacing: 0;
+      }
+
+      p {
+        max-width: 680px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.65;
+      }
+
+      .palette {
+        display: grid;
+        gap: 18px;
+        padding: 30px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .palette:first-of-type {
+        border-top: 0;
+        padding-top: 0;
+      }
+
+      .palette-heading {
+        display: grid;
+        gap: 8px;
+      }
+
+      .gradient {
+        height: 180px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: linear-gradient(90deg, var(--ink), var(--mist));
+        box-shadow: 0 18px 45px rgba(17, 24, 39, 0.12);
+      }
+
+      .gradient.red {
+        background: linear-gradient(
+          90deg,
+          #b71c1c,
+          #bc1f1e,
+          #c12221,
+          #c62524,
+          #cb2827,
+          #d02c29,
+          #d52f2c,
+          #da322f,
+          #df3532,
+          #e53935
+        );
+        box-shadow: 0 18px 45px rgba(183, 28, 28, 0.22);
+      }
+
+      .scale {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .scale.ten {
+        grid-template-columns: repeat(10, minmax(0, 1fr));
+      }
+
+      .swatch {
+        min-height: 156px;
+        display: grid;
+        align-content: end;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid rgba(17, 24, 39, 0.1);
+        border-radius: 8px;
+      }
+
+      .swatch strong,
+      .swatch span {
+        display: block;
+        overflow-wrap: anywhere;
+      }
+
+      .swatch strong {
+        font-size: 0.83rem;
+      }
+
+      .swatch span {
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.78rem;
+      }
+
+      .light {
+        color: #f8f8ff;
+      }
+
+      .dark {
+        color: #111827;
+      }
+
+      .usage {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 26px;
+      }
+
+      .sample {
+        min-height: 170px;
+        display: grid;
+        align-content: space-between;
+        padding: 18px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+      }
+
+      .sample h2 {
+        margin: 0;
+        font-size: 1rem;
+        letter-spacing: 0;
+      }
+
+      .sample p {
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      .button-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        min-height: 40px;
+        padding: 0 14px;
+        border: 0;
+        border-radius: 8px;
+        font: inherit;
+        font-weight: 700;
+      }
+
+      .primary {
+        color: #f8f8ff;
+        background: #111827;
+      }
+
+      .secondary {
+        color: #111827;
+        background: #d0d4e0;
+      }
+
+      @media (max-width: 860px) {
+        main {
+          width: min(100% - 24px, 680px);
+          padding: 28px 0;
+        }
+
+        .scale,
+        .scale.ten,
+        .usage {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 520px) {
+        .scale,
+        .scale.ten,
+        .usage {
+          grid-template-columns: 1fr;
+        }
+
+        .gradient {
+          height: 140px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Paletas de cores</h1>
+        <p>
+          Duas escalas visuais separadas para comparar tons neutros e tons
+          vermelhos, com gradientes, amostras e exemplos rapidos de aplicacao.
+        </p>
+      </header>
+
+      <section class="palette" aria-label="Paleta neutra">
+        <div class="palette-heading">
+          <h2>Neutra: #111827 para #f8f8ff</h2>
+          <p>
+            Escala criada a partir de uma interpolacao suave entre um grafite
+            profundo e um branco frio.
+          </p>
+        </div>
+
+        <div class="gradient"></div>
+
+        <div class="scale" aria-label="Amostras da paleta neutra">
+          <article class="swatch light" style="background: #111827">
+            <strong>900</strong><span>#111827</span>
+          </article>
+          <article class="swatch light" style="background: #252c3a">
+            <strong>800</strong><span>#252c3a</span>
+          </article>
+          <article class="swatch light" style="background: #393f4d">
+            <strong>700</strong><span>#393f4d</span>
+          </article>
+          <article class="swatch light" style="background: #4e5360">
+            <strong>650</strong><span>#4e5360</span>
+          </article>
+          <article class="swatch light" style="background: #626774">
+            <strong>600</strong><span>#626774</span>
+          </article>
+          <article class="swatch light" style="background: #767a87">
+            <strong>500</strong><span>#767a87</span>
+          </article>
+          <article class="swatch dark" style="background: #8a8e9a">
+            <strong>400</strong><span>#8a8e9a</span>
+          </article>
+          <article class="swatch dark" style="background: #9fa2ad">
+            <strong>350</strong><span>#9fa2ad</span>
+          </article>
+          <article class="swatch dark" style="background: #b3b5c0">
+            <strong>300</strong><span>#b3b5c0</span>
+          </article>
+          <article class="swatch dark" style="background: #c7c9d4">
+            <strong>200</strong><span>#c7c9d4</span>
+          </article>
+          <article class="swatch dark" style="background: #dbdde7">
+            <strong>100</strong><span>#dbdde7</span>
+          </article>
+          <article class="swatch dark" style="background: #f8f8ff">
+            <strong>50</strong><span>#f8f8ff</span>
+          </article>
+        </div>
+
+        <div class="usage" aria-label="Exemplos de uso da paleta neutra">
+          <article class="sample light" style="background: #111827">
+            <h2>Base escura</h2>
+            <p>Boa para barras, fundos imersivos e areas de maior contraste.</p>
+            <div class="button-row">
+              <button class="secondary">Acao</button>
+            </div>
+          </article>
+          <article class="sample dark" style="background: #dbdde7">
+            <h2>Superficie neutra</h2>
+            <p>Funciona em cards, divisorias e blocos de conteudo secundarios.</p>
+            <div class="button-row">
+              <button class="primary">Acao</button>
+            </div>
+          </article>
+          <article class="sample dark" style="background: #f8f8ff">
+            <h2>Fundo claro</h2>
+            <p>Ideal para telas limpas, leitura longa e respiro visual.</p>
+            <div class="button-row">
+              <button class="primary">Acao</button>
+              <button class="secondary">Neutro</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="palette" aria-label="Paleta vermelha">
+        <div class="palette-heading">
+          <h2>Vermelha: #b71c1c para #e53935</h2>
+          <p>
+            Escala de vermelhos para alertas, destaque visual e elementos de
+            acao com maior intensidade.
+          </p>
+        </div>
+
+        <div class="gradient red"></div>
+
+        <div class="scale ten" aria-label="Amostras da paleta vermelha">
+          <article class="swatch light" style="background: #b71c1c">
+            <strong>900</strong><span>#B71C1C</span>
+          </article>
+          <article class="swatch light" style="background: #bc1f1e">
+            <strong>800</strong><span>#BC1F1E</span>
+          </article>
+          <article class="swatch light" style="background: #c12221">
+            <strong>700</strong><span>#C12221</span>
+          </article>
+          <article class="swatch light" style="background: #c62524">
+            <strong>600</strong><span>#C62524</span>
+          </article>
+          <article class="swatch light" style="background: #cb2827">
+            <strong>500</strong><span>#CB2827</span>
+          </article>
+          <article class="swatch light" style="background: #d02c29">
+            <strong>400</strong><span>#D02C29</span>
+          </article>
+          <article class="swatch light" style="background: #d52f2c">
+            <strong>300</strong><span>#D52F2C</span>
+          </article>
+          <article class="swatch light" style="background: #da322f">
+            <strong>200</strong><span>#DA322F</span>
+          </article>
+          <article class="swatch light" style="background: #df3532">
+            <strong>100</strong><span>#DF3532</span>
+          </article>
+          <article class="swatch light" style="background: #e53935">
+            <strong>50</strong><span>#E53935</span>
+          </article>
+        </div>
+
+        <div class="usage" aria-label="Exemplos de uso da paleta vermelha">
+          <article class="sample light" style="background: #b71c1c">
+            <h2>Critico</h2>
+            <p>Indicado para estados de erro, risco e comunicados urgentes.</p>
+            <div class="button-row">
+              <button class="secondary">Revisar</button>
+            </div>
+          </article>
+          <article class="sample light" style="background: #cb2827">
+            <h2>Destaque</h2>
+            <p>Funciona bem em acoes principais quando a interface pede calor.</p>
+            <div class="button-row">
+              <button class="secondary">Continuar</button>
+            </div>
+          </article>
+          <article class="sample light" style="background: #e53935">
+            <h2>Acao</h2>
+            <p>Um vermelho mais vivo para botoes, badges e pontos de atencao.</p>
+            <div class="button-row">
+              <button class="secondary">Aplicar</button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

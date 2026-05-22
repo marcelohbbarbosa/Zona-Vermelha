@@ -78,7 +78,7 @@ export default function Home({ navigation }: any) {
 
       {/* FUNDO */}
       <ImageBackground
-        source={require("../../assets/images/mapa.png")}
+        source={require("../../assets/images/map.png")}
         resizeMode="cover"
         style={styles.background}
       >
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   dragBar: {
     width: 70,
     height: 7,
-    backgroundColor: "#666",
+    backgroundColor: "#b3b5c0",
     borderRadius: 10,
   },
 
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   button: {
     width: "48%",
 
-    backgroundColor: "#8B0000",
+    backgroundColor: "#b71c1c",
 
     paddingVertical: 20,
     paddingHorizontal: 15,

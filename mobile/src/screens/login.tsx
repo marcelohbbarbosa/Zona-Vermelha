@@ -62,14 +62,14 @@ export default function Login({ navigation }: any) {
         </Text>
 
         <TextInput
-          placeholder="Digite seu email"
+          placeholder="Email"
           value={email}
           onChangeText={setEmail}
           style={styles.input}
         />
 
         <TextInput
-          placeholder="Digite sua senha"
+          placeholder="Senha"
           value={senha}
           onChangeText={setSenha}
           secureTextEntry
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   },
 
   topo: {
-  backgroundColor: "#8B0000",
+  backgroundColor: "#b71c1c",
   alignItems: "center",
   paddingTop: 80,
 },
@@ -123,8 +123,8 @@ const styles = StyleSheet.create({
 },
 
   logo: {
-    width: 375,
-    height: 225,
+    width: 400,
+    height: 200,
     resizeMode: "contain",
     alignSelf: "auto"
   },
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
 
   link: {
     fontSize: 20,
-    color: "blue",
+    color: "#b71c1c",
   },
 
   input: {
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   },
 
   botao: {
-    backgroundColor: "#8B0000",
+    backgroundColor: "#b71c1c",
     padding: 18,
     borderRadius: 10,
     alignItems: "center",

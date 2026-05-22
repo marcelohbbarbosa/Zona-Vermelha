@@ -1,4 +1,6 @@
 # Zona-Vermelha
+Para efetuar o download do app clique aqui:
+https://expo.dev/artifacts/eas/5CLX7Tf9auFLZ2PkrVhSDt.apk
 
 Repositorio para desenvolvimento da aplicacao para a conclusao de curso de Desenvolvimento de Sistemas.
 

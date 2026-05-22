@@ -3,6 +3,7 @@ import React, { useRef } from "react";
 import {
   View,
   Text,
+  ImageBackground,
   StyleSheet,
   Animated,
   PanResponder,
@@ -11,86 +12,95 @@ import {
 
 export default function Home({ navigation }: any) {
 
-    const translateY = useRef(
-        new Animated.Value(430)
-    ).current;
+  const CLOSED_POSITION = 430;
+  const OPEN_POSITION = 0;
 
-    const lastOffset = useRef(430);
+  const translateY = useRef(
+    new Animated.Value(CLOSED_POSITION)
+  ).current;
 
-    const panResponder = PanResponder.create({
+  const lastOffset = useRef(CLOSED_POSITION);
 
-    onMoveShouldSetPanResponder: (_, gestureState) => {
+  const panResponder = useRef(
+
+    PanResponder.create({
+
+      onMoveShouldSetPanResponder: (_, gestureState) => {
         return Math.abs(gestureState.dy) > 10;
-    },
+      },
 
-    onPanResponderMove: (_, gestureState) => {
+      onPanResponderMove: (_, gestureState) => {
 
         const newPosition =
-        lastOffset.current + gestureState.dy;
+          lastOffset.current + gestureState.dy;
 
         translateY.setValue(
-            Math.max(0, newPosition)
+          Math.max(OPEN_POSITION, newPosition)
         );
-    },
+      },
 
-    onPanResponderRelease: (_, gestureState) => {
+      onPanResponderRelease: (_, gestureState) => {
 
         let finalPosition;
 
         if (gestureState.dy < -120) {
 
-        // abre
-        finalPosition = 0;
+          // abre
+          finalPosition = OPEN_POSITION;
 
         } else if (gestureState.dy > 120) {
 
-        // fecha
-        finalPosition = 430;
+          // fecha
+          finalPosition = CLOSED_POSITION;
 
         } else {
 
-        // mantém posição atual
-        finalPosition = lastOffset.current;
+          // mantém
+          finalPosition = lastOffset.current;
 
-    }
+        }
 
-    lastOffset.current = finalPosition;
+        lastOffset.current = finalPosition;
 
-    Animated.spring(translateY, {
-        toValue: finalPosition,
-        useNativeDriver: true,
-    }).start();
-    },
-});
+        Animated.spring(translateY, {
+          toValue: finalPosition,
+          useNativeDriver: true,
+        }).start();
+      },
+
+    })
+
+  ).current;
 
   return (
 
     <View style={styles.container}>
 
       {/* FUNDO */}
-      <View style={styles.background}>
+      <ImageBackground
+        source={require("../../assets/images/mapa.png")}
+        resizeMode="cover"
+        style={styles.background}
+      >
+      </ImageBackground>
 
-        <Text style={styles.title}>
-          API / MAPA
-        </Text>
-
-      </View>
-
-      {/* BOTTOM BAR */}
+      {/* BOTTOM SHEET */}
       <Animated.View
-        {...panResponder.panHandlers}
         style={[
-            styles.sheet,
-            {
-                transform: [{ translateY }]
-            }
+          styles.sheet,
+          {
+            transform: [{ translateY }],
+          },
         ]}
       >
 
-  {/* ÁREA VISUAL */}
-  <View style={styles.dragArea}>
-    <View style={styles.dragBar} />
-  </View>
+        {/* ÁREA DE ARRASTAR */}
+        <View
+          {...panResponder.panHandlers}
+          style={styles.dragArea}
+        >
+          <View style={styles.dragBar} />
+        </View>
 
         {/* BOTÕES */}
         <View style={styles.buttonsContainer}>
@@ -99,28 +109,36 @@ export default function Home({ navigation }: any) {
             style={styles.button}
             onPress={() => navigation.navigate("Comentarios")}
           >
-            <Text style={styles.buttonText}>Comentarios</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => navigation.navigate("Sobre")}
-          >
-            <Text style={styles.buttonText}>Sobre</Text>
+            <Text style={styles.buttonText}>
+              Comentários
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.button}
             onPress={() => navigation.navigate("Contatos")}
           >
-            <Text style={styles.buttonText}>Contatos</Text>
+            <Text style={styles.buttonText}>
+              Contatos
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.navigate("Sobre")}
+          >
+            <Text style={styles.buttonText}>
+              Sobre
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.button}
             onPress={() => navigation.navigate("Login")}
           >
-            <Text style={styles.buttonText}>Sair</Text>
+            <Text style={styles.buttonText}>
+              Sair
+            </Text>
           </TouchableOpacity>
 
         </View>
@@ -135,7 +153,6 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
-    backgroundColor: "#111",
   },
 
   background: {
@@ -146,7 +163,12 @@ const styles = StyleSheet.create({
 
   title: {
     color: "white",
-    fontSize: 24,
+    fontSize: 28,
+    fontWeight: "bold",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 15,
   },
 
   sheet: {
@@ -154,15 +176,19 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: "100%",
     height: 500,
-    backgroundColor: "#222",
+
+    backgroundColor: "#F8F8FF",
+
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
+
     paddingTop: 10,
   },
 
   dragArea: {
     alignItems: "center",
     marginBottom: 25,
+    paddingVertical: 10,
   },
 
   dragBar: {
@@ -175,21 +201,29 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
-    justifyContent: "center",
+    justifyContent: "space-between",
+
     paddingHorizontal: 20,
+    gap: 12,
   },
 
   button: {
-    backgroundColor: "#333",
-    paddingVertical: 15,
-    paddingHorizontal: 20,
+    width: "48%",
+
+    backgroundColor: "#8B0000",
+
+    paddingVertical: 20,
+    paddingHorizontal: 15,
+
     borderRadius: 15,
+
+    alignItems: "center",
   },
 
   buttonText: {
     color: "white",
     fontSize: 16,
+    fontWeight: "bold",
   },
 
 });

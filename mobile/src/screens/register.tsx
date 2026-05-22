@@ -141,13 +141,14 @@ const styles = StyleSheet.create({
   formulario: {
     flex: 1,
     padding: 24,
-    marginTop: -30,
+    marginTop: -70,
   },
 
   titulo: {
     fontSize: 32,
     marginBottom: 30,
     fontWeight: "bold",
+    textAlign: "right",
   },
 
   texto: {

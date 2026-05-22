@@ -119,6 +119,7 @@ const styles = StyleSheet.create({
   curva: {
   width: "auto",
   marginTop: "auto",
+  transform: [{ scaleX: -1 }],
 },
 
   logo: {
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
   formulario: {
     flex: 1,
     padding: 24,
-    marginTop: -20,
+    marginTop: -70,
   },
 
   titulo: {
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
   botao: {
     backgroundColor: "#8B0000",
     padding: 18,
-    borderRadius: 25,
+    borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
   },

@@ -28,7 +28,7 @@ const imagens = {
 };
 
 const API_BASE_URL =
-  "http://localhost:3000";
+  "https://zona-vermelha.onrender.com";
 
 export default function Comentarios({ navigation }: any) {
   const [comentarios, setComentarios] = useState<Comentario[]>([]);

@@ -3,6 +3,10 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+<<<<<<< HEAD
+  Image,
+=======
+>>>>>>> main
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -21,6 +25,14 @@ type Comentario = {
   dataCriacao: string;
 };
 
+<<<<<<< HEAD
+const imagens = {
+  conta: require("../../assets/images/Account.png"),
+  voltar: require("../../assets/images/Return.png"),
+};
+
+=======
+>>>>>>> main
 const API_BASE_URL =
   "https://zona-vermelha.onrender.com";
 
@@ -52,7 +64,11 @@ export default function Comentarios({ navigation }: any) {
       setComentarios(Array.isArray(dados) ? dados : []);
       setErro("");
     } catch {
+<<<<<<< HEAD
+      setErro("Não foi possível conectar ao servidor de avaliações.");
+=======
       setErro("Nao foi possivel conectar ao backend.");
+>>>>>>> main
     } finally {
       setCarregando(false);
       setAtualizando(false);
@@ -170,8 +186,16 @@ export default function Comentarios({ navigation }: any) {
   const renderComentario = ({ item }: { item: Comentario }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
+<<<<<<< HEAD
+        <View style={styles.autor}>
+          <View style={styles.avatar}><Image source={imagens.conta} style={styles.iconeConta} /></View>
+          <View><Text style={styles.nomeAutor}>MB_337</Text><Text style={styles.data}>{formatarData(item.dataCriacao)}</Text></View>
+        </View>
+        <Text style={styles.zona}>{item.zona}</Text>
+=======
         <Text style={styles.zona}>{item.zona}</Text>
         <Text style={styles.data}>{formatarData(item.dataCriacao)}</Text>
+>>>>>>> main
       </View>
 
       <Text style={styles.comentario}>{item.comentario}</Text>
@@ -204,12 +228,29 @@ export default function Comentarios({ navigation }: any) {
     <View>
       <View style={styles.header}>
         <Pressable
+<<<<<<< HEAD
+          accessibilityLabel="Voltar ao mapa"
+          onPress={() => navigation.goBack()}
+=======
           onPress={() => navigation.navigate("Home")}
+>>>>>>> main
           style={({ pressed }) => [
             styles.backButton,
             pressed && styles.buttonPressed,
           ]}
         >
+<<<<<<< HEAD
+          <Image source={imagens.voltar} style={styles.iconeVoltar} />
+        </Pressable>
+      </View>
+
+      <Text style={styles.title}>Avaliações</Text>
+      <Text style={styles.intro}>Compartilhe informações importantes para ajudar outras pessoas a se deslocarem com mais segurança.</Text>
+
+      <View style={styles.formPanel}>
+        <Text style={styles.formTitle}>
+          {comentarioEmEdicao ? "Editar avaliação" : "Faça uma avaliação"}
+=======
           <Text style={styles.backButtonText}>Voltar</Text>
         </Pressable>
 
@@ -230,6 +271,7 @@ export default function Comentarios({ navigation }: any) {
       <View style={styles.formPanel}>
         <Text style={styles.formTitle}>
           {comentarioEmEdicao ? "Editar registro" : "Novo registro"}
+>>>>>>> main
         </Text>
 
         <TextInput
@@ -276,9 +318,13 @@ export default function Comentarios({ navigation }: any) {
             {salvando ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
+<<<<<<< HEAD
+              <Text style={styles.saveButtonText}>{comentarioEmEdicao ? "Salvar avaliação" : "Publicar avaliação"}</Text>
+=======
               <Text style={styles.saveButtonText}>
                 {comentarioEmEdicao ? "Salvar" : "Adicionar"}
               </Text>
+>>>>>>> main
             )}
           </Pressable>
         </View>
@@ -290,7 +336,11 @@ export default function Comentarios({ navigation }: any) {
         </View>
       ) : null}
 
+<<<<<<< HEAD
+      <Text style={styles.sectionTitle}>Suas avaliações</Text>
+=======
       <Text style={styles.sectionTitle}>Registros recentes</Text>
+>>>>>>> main
     </View>
   );
 
@@ -349,13 +399,62 @@ function formatarData(valor: string) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+<<<<<<< HEAD
+    backgroundColor: "#f8f8ff",
+=======
     backgroundColor: "#111827",
+>>>>>>> main
   },
   keyboardView: {
     flex: 1,
   },
   listContent: {
     flexGrow: 1,
+<<<<<<< HEAD
+    gap: 14,
+    paddingBottom: 28,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === "android" ? 18 : 8,
+  },
+  header: {
+    flexDirection: "row",
+    marginBottom: 22,
+  },
+  title: {
+    color: "#1f2937",
+    fontSize: 26,
+    fontWeight: "800",
+    marginTop: 0,
+  },
+  intro: { color: "#6b7280", fontSize: 15, lineHeight: 21, marginTop: 6 },
+  backButton: {
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 21,
+    elevation: 7,
+    height: 42,
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    width: 42,
+  },
+  iconeVoltar: { height: 22, resizeMode: "contain", width: 22 },
+  formPanel: {
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    elevation: 4,
+    marginTop: 22,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 7,
+  },
+  formTitle: {
+    color: "#1f2937",
+=======
     gap: 12,
     paddingBottom: 28,
     paddingHorizontal: 18,
@@ -412,6 +511,7 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     color: "#111827",
+>>>>>>> main
     fontSize: 18,
     fontWeight: "800",
     letterSpacing: 0,
@@ -420,7 +520,11 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: "#ffffff",
     borderColor: "#d7dee8",
+<<<<<<< HEAD
+    borderRadius: 14,
+=======
     borderRadius: 8,
+>>>>>>> main
     borderWidth: 1,
     color: "#111827",
     fontSize: 16,
@@ -440,12 +544,20 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     alignItems: "center",
+<<<<<<< HEAD
+    backgroundColor: "#8b0000",
+    borderRadius: 23,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: 18,
+=======
     backgroundColor: "#c5283d",
     borderRadius: 8,
     justifyContent: "center",
     minHeight: 46,
     minWidth: 124,
     paddingHorizontal: 16,
+>>>>>>> main
   },
   saveButtonText: {
     color: "#ffffff",
@@ -487,6 +599,24 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   sectionTitle: {
+<<<<<<< HEAD
+    color: "#1f2937",
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: 0,
+    marginBottom: 2,
+    marginTop: 28,
+  },
+  card: {
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    elevation: 3,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+=======
     color: "#dbeafe",
     fontSize: 16,
     fontWeight: "800",
@@ -498,10 +628,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderRadius: 8,
     padding: 15,
+>>>>>>> main
   },
   cardHeader: {
     alignItems: "center",
     flexDirection: "row",
+<<<<<<< HEAD
+    gap: 8,
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  autor: { alignItems: "center", flexDirection: "row", flex: 1 },
+  avatar: { alignItems: "center", backgroundColor: "#d1d5db", borderRadius: 16, height: 32, justifyContent: "center", marginRight: 9, width: 32 },
+  iconeConta: { height: 20, resizeMode: "contain", width: 20 },
+  nomeAutor: { color: "#1f2937", fontSize: 14, fontWeight: "800" },
+  zona: {
+    backgroundColor: "#fbe3e3",
+    borderRadius: 12,
+    color: "#8b0000",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0,
+    maxWidth: "42%",
+=======
     gap: 10,
     justifyContent: "space-between",
     marginBottom: 10,
@@ -514,11 +663,16 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0,
     maxWidth: "62%",
+>>>>>>> main
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   data: {
+<<<<<<< HEAD
+    color: "#6b7280",
+=======
     color: "#64748b",
+>>>>>>> main
     flexShrink: 1,
     fontSize: 12,
     fontWeight: "700",
@@ -566,8 +720,13 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: "center",
+<<<<<<< HEAD
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+=======
     backgroundColor: "#f8fafc",
     borderRadius: 8,
+>>>>>>> main
     marginTop: 2,
     padding: 22,
   },

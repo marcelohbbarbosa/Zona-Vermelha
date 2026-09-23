@@ -7,11 +7,14 @@ import Login from "./src/screens/login";
 import Register from "./src/screens/register";
 import Sobre from "./src/screens/about";
 import Comentarios from "./src/screens/comments";
+<<<<<<< HEAD
 import Rotas from "./src/screens/routes";
 import Turismo from "./src/screens/tourism";
 import Conta from "./src/screens/account";
 import Configuracoes from "./src/screens/settings";
 import Pesquisa from "./src/screens/search";
+=======
+>>>>>>> main
 
 const Stack = createNativeStackNavigator();
 
@@ -52,6 +55,7 @@ export default function App() {
           name="Comentarios"
           component={Comentarios}
         />
+<<<<<<< HEAD
 
         <Stack.Screen
           name="Rotas"
@@ -77,6 +81,8 @@ export default function App() {
           name="Pesquisa"
           component={Pesquisa}
         />
+=======
+>>>>>>> main
       </Stack.Navigator>
     </NavigationContainer>
   );

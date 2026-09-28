@@ -1,12 +1,32 @@
 import { useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { api, salvarToken } from "../services/api";
 
 export default function Register({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
 
-  function fazerRegistro() {
-    navigation.navigate("Home");
+  async function fazerRegistro() {
+    if (!email || senha.length < 6) {
+      setErro("Informe um e-mail e uma senha com pelo menos 6 caracteres.");
+      return;
+    }
+    setCarregando(true);
+    setErro("");
+    try {
+      const dados = await api("/auth/registrar", {
+        method: "POST",
+        body: { email: email.trim(), senha },
+      });
+      await salvarToken(dados.token);
+      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+    } catch (e: any) {
+      setErro(e.message);
+    } finally {
+      setCarregando(false);
+    }
   }
 
   return (
@@ -27,8 +47,9 @@ export default function Register({ navigation }: any) {
               <TextInput autoCapitalize="none" autoComplete="email" keyboardType="email-address" onChangeText={setEmail} placeholder="Digite seu e-mail" placeholderTextColor="#9ca3af" style={styles.input} value={email} />
               <Text style={styles.rotulo}>Senha</Text>
               <TextInput autoComplete="new-password" onChangeText={setSenha} placeholder="Crie uma senha" placeholderTextColor="#9ca3af" secureTextEntry style={styles.input} value={senha} />
-              <Pressable accessibilityRole="button" onPress={fazerRegistro} style={styles.botao}>
-                <Text style={styles.textoBotao}>Registrar</Text>
+              {erro ? <Text style={styles.erro}>{erro}</Text> : null}
+              <Pressable accessibilityRole="button" disabled={carregando} onPress={fazerRegistro} style={[styles.botao, carregando && { opacity: 0.6 }]}>
+                <Text style={styles.textoBotao}>{carregando ? "Registrando..." : "Registrar"}</Text>
               </Pressable>
             </View>
 
@@ -55,6 +76,7 @@ const styles = StyleSheet.create({
   input: { backgroundColor: "#ffffff", borderColor: "#e5e7eb", borderRadius: 14, borderWidth: 1, color: "#1f2937", elevation: 1, fontSize: 16, minHeight: 52, paddingHorizontal: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2 },
   botao: { alignItems: "center", backgroundColor: "#8b0000", borderRadius: 26, justifyContent: "center", marginTop: 27, minHeight: 52 },
   textoBotao: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
+  erro: { color: "#b91c1c", fontSize: 14, marginTop: 14, textAlign: "center" },
   textoCadastro: { color: "#374151", fontSize: 15, marginTop: 25, textAlign: "center" },
   link: { color: "#8b0000", fontWeight: "800" },
 });

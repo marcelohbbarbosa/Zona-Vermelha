@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { autenticar } from "../middlewares/auth";
 import {
   listarComentarios,
   criarComentario,
@@ -9,8 +10,8 @@ import {
 const router = Router();
 
 router.get("/comentarios", listarComentarios);
-router.post("/comentarios", criarComentario);
-router.put("/comentarios/:id", atualizarComentario);
-router.delete("/comentarios/:id", deletarComentario);
+router.post("/comentarios", autenticar, criarComentario);
+router.put("/comentarios/:id", autenticar, atualizarComentario);
+router.delete("/comentarios/:id", autenticar, deletarComentario);
 
 export default router;

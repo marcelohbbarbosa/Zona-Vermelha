@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Image, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import * as Location from "expo-location";
 
 const sugestoes = ["Rua Almeida, 523", "Rua Anchieta, 212", "Rua Anchieta, 215", "Rua Augusta", "Rua Afonso Bovero", "Rua Argentina"];
 
@@ -13,30 +14,80 @@ const imagens = {
 export default function Rotas({ navigation, route }: any) {
   const destinoTuristico = route?.params?.destino;
   const [origem, setOrigem] = useState("Localização atual");
+  const [origemCoordenadas, setOrigemCoordenadas] = useState<{ latitude: number; longitude: number } | null>(null);
   const [destino, setDestino] = useState(destinoTuristico ?? "");
+  const [destinoCoordenadas, setDestinoCoordenadas] = useState<{ latitude: number; longitude: number } | null>(
+    route?.params?.latitude != null && route?.params?.longitude != null
+      ? { latitude: Number(route.params.latitude), longitude: Number(route.params.longitude) }
+      : null,
+  );
   const [rotaCriada, setRotaCriada] = useState(false);
-  const [pontos, setPontos] = useState(1);
-  const podeCriar = Boolean(origem.trim() && destino.trim());
-
-  useEffect(() => {
-    if (!rotaCriada) {
-      setPontos(1);
-      return;
-    }
-
-    const intervalo = setInterval(() => setPontos((atual) => atual === 3 ? 1 : atual + 1), 450);
-    return () => clearInterval(intervalo);
-  }, [rotaCriada]);
+  const [localizando, setLocalizando] = useState(false);
+  const [abrindoRota, setAbrindoRota] = useState(false);
+  const podeCriar = Boolean(origem.trim() && destino.trim()) && !abrindoRota;
 
   useEffect(() => {
     if (destinoTuristico) {
       setDestino(destinoTuristico);
+      setDestinoCoordenadas(
+        route?.params?.latitude != null && route?.params?.longitude != null
+          ? { latitude: Number(route.params.latitude), longitude: Number(route.params.longitude) }
+          : null,
+      );
       setRotaCriada(false);
     }
-  }, [destinoTuristico]);
+  }, [destinoTuristico, route?.params?.latitude, route?.params?.longitude]);
+
+  const usarLocalizacao = async (): Promise<{ latitude: number; longitude: number } | null> => {
+    setLocalizando(true);
+    try {
+      const permissao = await Location.requestForegroundPermissionsAsync();
+      if (permissao.status !== "granted") {
+        Alert.alert("Localização necessária", "Permita o acesso à localização para usar sua posição como origem da rota.");
+        return null;
+      }
+      const posicao = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const coordenadas = { latitude: posicao.coords.latitude, longitude: posicao.coords.longitude };
+      setOrigemCoordenadas(coordenadas);
+      setOrigem("Minha localização atual");
+      setRotaCriada(false);
+      return coordenadas;
+    } catch {
+      Alert.alert("Não foi possível obter a localização", "Confira se o GPS está ativo e tente novamente.");
+      return null;
+    } finally {
+      setLocalizando(false);
+    }
+  };
+
+  const criarRota = async () => {
+    if (!origem.trim() || !destino.trim()) return;
+    setAbrindoRota(true);
+    try {
+      let origemAtual = origemCoordenadas;
+      if (!origemAtual && origem.toLowerCase().includes("localização atual")) {
+        origemAtual = await usarLocalizacao();
+        if (!origemAtual) return;
+      }
+      const origemUrl = origemAtual
+        ? `${origemAtual.latitude},${origemAtual.longitude}`
+        : origem;
+      const destinoUrl = destinoCoordenadas
+        ? `${destinoCoordenadas.latitude},${destinoCoordenadas.longitude}`
+        : destino;
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origemUrl)}&destination=${encodeURIComponent(destinoUrl)}&travelmode=walking`;
+      await Linking.openURL(url);
+      setRotaCriada(true);
+    } catch {
+      Alert.alert("Erro ao abrir a rota", "Não foi possível abrir o serviço de mapas.");
+    } finally {
+      setAbrindoRota(false);
+    }
+  };
 
   const selecionarDestino = (local: string) => {
     setDestino(local);
+    setDestinoCoordenadas(null);
     setRotaCriada(false);
   };
 
@@ -58,18 +109,20 @@ export default function Rotas({ navigation, route }: any) {
         <Text style={styles.descricao}>Informe a origem e o destino para traçar seu caminho.</Text>
 
         <View style={styles.formulario}>
-          <TextInput onBlur={() => { if (!origem.trim()) setOrigem("Localização atual"); }} onChangeText={(valor) => { setOrigem(valor); setRotaCriada(false); }} onFocus={() => { if (origem === "Localização atual") setOrigem(""); }} placeholder="De onde você sai?" placeholderTextColor="#6b7280" style={styles.campo} value={origem} />
-          <TextInput onChangeText={(valor) => { setDestino(valor); setRotaCriada(false); }} placeholder="Para onde você vai?" placeholderTextColor="#6b7280" style={styles.campo} value={destino} />
-          <Pressable accessibilityRole="button" disabled={!podeCriar} onPress={() => setRotaCriada(true)} style={[styles.botaoCriar, !podeCriar && styles.botaoDesativado]}>
-            <Text style={styles.textoBotaoCriar}>Criar rota</Text>
+          <TextInput onBlur={() => { if (!origem.trim()) setOrigem("Localização atual"); }} onChangeText={(valor) => { setOrigem(valor); setOrigemCoordenadas(null); setRotaCriada(false); }} onFocus={() => { if (origem === "Localização atual" || origem === "Minha localização atual") setOrigem(""); }} placeholder="De onde você sai?" placeholderTextColor="#6b7280" style={styles.campo} value={origem} />
+          <Pressable accessibilityRole="button" disabled={localizando} onPress={usarLocalizacao} style={styles.botaoLocalizacao}>
+            <Text style={styles.textoLocalizacao}>{localizando ? "Obtendo localização..." : "Usar minha localização atual"}</Text>
+          </Pressable>
+          <TextInput onChangeText={(valor) => { setDestino(valor); setDestinoCoordenadas(null); setRotaCriada(false); }} placeholder="Para onde você vai?" placeholderTextColor="#6b7280" style={styles.campo} value={destino} />
+          <Pressable accessibilityRole="button" disabled={!podeCriar} onPress={criarRota} style={[styles.botaoCriar, !podeCriar && styles.botaoDesativado]}>
+            <Text style={styles.textoBotaoCriar}>{abrindoRota ? "Abrindo mapas..." : "Criar rota"}</Text>
           </Pressable>
         </View>
 
         {rotaCriada ? (
           <View style={styles.confirmacao}>
-            <Text style={styles.tituloConfirmacao}>Calculando rotas{".".repeat(pontos)}</Text>
+            <Text style={styles.tituloConfirmacao}>Rota aberta no Google Maps</Text>
             <Text style={styles.textoConfirmacao}>{origem} → {destino}</Text>
-            <Text style={styles.avisoFuncao}>A geração de rotas ainda está em desenvolvimento.</Text>
           </View>
         ) : null}
 
@@ -103,6 +156,8 @@ const styles = StyleSheet.create({
   campo: { backgroundColor: "#ffffff", borderColor: "#e5e7eb", borderRadius: 14, borderWidth: 1, color: "#1f2937", fontSize: 16, minHeight: 52, paddingHorizontal: 16 },
   botaoCriar: { alignItems: "center", backgroundColor: "#8b0000", borderRadius: 26, elevation: 6, justifyContent: "center", marginTop: 4, minHeight: 52, shadowColor: "#450000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8 },
   botaoDesativado: { opacity: 0.45 },
+  botaoLocalizacao: { alignSelf: "flex-start", paddingVertical: 5 },
+  textoLocalizacao: { color: "#8b0000", fontSize: 14, fontWeight: "700" },
   textoBotaoCriar: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
   confirmacao: { backgroundColor: "#ffffff", borderColor: "#d1d5db", borderRadius: 16, borderWidth: 1, marginHorizontal: 24, marginTop: 18, padding: 16 },
   tituloConfirmacao: { color: "#8b0000", fontSize: 16, fontWeight: "800" },

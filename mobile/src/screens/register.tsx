@@ -1,27 +1,28 @@
 import { useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { api, salvarToken } from "../services/api";
+import { api } from "../services/api";
 
 export default function Register({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
+  const [sucesso, setSucesso] = useState("");
   const [carregando, setCarregando] = useState(false);
 
   async function fazerRegistro() {
-    if (!email || senha.length < 6) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || senha.length < 6) {
       setErro("Informe um e-mail e uma senha com pelo menos 6 caracteres.");
       return;
     }
     setCarregando(true);
     setErro("");
+    setSucesso("");
     try {
       const dados = await api("/auth/registrar", {
         method: "POST",
         body: { email: email.trim(), senha },
       });
-      await salvarToken(dados.token);
-      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      setSucesso(dados.mensagem ?? "Confira seu e-mail para confirmar a conta antes de entrar.");
     } catch (e: any) {
       setErro(e.message);
     } finally {
@@ -31,8 +32,8 @@ export default function Register({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"} automaticallyAdjustKeyboardInsets={Platform.OS === "ios"} showsVerticalScrollIndicator={false}>
           <View style={styles.cabecalho}>
             <Image source={require("../../assets/images/name.png")} style={styles.logo} />
             <Text style={styles.frase}>Navegue pela cidade com a segurança de estar na melhor rota</Text>
@@ -48,6 +49,7 @@ export default function Register({ navigation }: any) {
               <Text style={styles.rotulo}>Senha</Text>
               <TextInput autoComplete="new-password" onChangeText={setSenha} placeholder="Crie uma senha" placeholderTextColor="#9ca3af" secureTextEntry style={styles.input} value={senha} />
               {erro ? <Text style={styles.erro}>{erro}</Text> : null}
+              {sucesso ? <Text style={styles.sucesso}>{sucesso}</Text> : null}
               <Pressable accessibilityRole="button" disabled={carregando} onPress={fazerRegistro} style={[styles.botao, carregando && { opacity: 0.6 }]}>
                 <Text style={styles.textoBotao}>{carregando ? "Registrando..." : "Registrar"}</Text>
               </Pressable>
@@ -77,6 +79,7 @@ const styles = StyleSheet.create({
   botao: { alignItems: "center", backgroundColor: "#8b0000", borderRadius: 26, justifyContent: "center", marginTop: 27, minHeight: 52 },
   textoBotao: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
   erro: { color: "#b91c1c", fontSize: 14, marginTop: 14, textAlign: "center" },
+  sucesso: { color: "#166534", fontSize: 14, marginTop: 14, textAlign: "center" },
   textoCadastro: { color: "#374151", fontSize: 15, marginTop: 25, textAlign: "center" },
   link: { color: "#8b0000", fontWeight: "800" },
 });

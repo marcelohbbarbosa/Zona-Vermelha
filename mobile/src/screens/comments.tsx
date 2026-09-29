@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { api } from "../services/api";
 import {
   ActivityIndicator,
   Alert,
@@ -20,15 +21,14 @@ type Comentario = {
   zona: string;
   comentario: string;
   dataCriacao: string;
+  nomeAutor: string;
+  idUsuario: number;
 };
 
 const imagens = {
   conta: require("../../assets/images/Account.png"),
   voltar: require("../../assets/images/Return.png"),
 };
-
-const API_BASE_URL =
-  "https://zona-vermelha-backend.onrender.com";
 
 export default function Comentarios({ navigation }: any) {
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
@@ -41,6 +41,7 @@ export default function Comentarios({ navigation }: any) {
   const [atualizando, setAtualizando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  const [usuarioId, setUsuarioId] = useState<number | null>(null);
 
   const carregarComentarios = useCallback(async (mostrarCarregando = true) => {
     if (mostrarCarregando) {
@@ -48,13 +49,7 @@ export default function Comentarios({ navigation }: any) {
     }
 
     try {
-      const resposta = await fetch(`${API_BASE_URL}/comentarios`);
-
-      if (!resposta.ok) {
-        throw new Error("Falha ao buscar comentarios");
-      }
-
-      const dados = (await resposta.json()) as Comentario[];
+      const dados = (await api("/comentarios")) as Comentario[];
       setComentarios(Array.isArray(dados) ? dados : []);
       setErro("");
     } catch {
@@ -67,6 +62,9 @@ export default function Comentarios({ navigation }: any) {
 
   useEffect(() => {
     carregarComentarios();
+    api("/auth/perfil", { autenticado: true })
+      .then((perfil) => setUsuarioId(perfil.id))
+      .catch(() => setUsuarioId(null));
   }, [carregarComentarios]);
 
   const limparFormulario = () => {
@@ -88,30 +86,23 @@ export default function Comentarios({ navigation }: any) {
 
     try {
       const editando = comentarioEmEdicao !== null;
-      const resposta = await fetch(
-        editando
-          ? `${API_BASE_URL}/comentarios/${comentarioEmEdicao}`
-          : `${API_BASE_URL}/comentarios`,
-        {
-          method: editando ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            zona: zonaTratada,
-            comentario: comentarioTratado,
-          }),
-        },
-      );
-
-      if (!resposta.ok) {
-        throw new Error("Falha ao salvar comentario");
-      }
+      await api(editando ? `/comentarios/${comentarioEmEdicao}` : "/comentarios", {
+        method: editando ? "PUT" : "POST",
+        autenticado: true,
+        body: { zona: zonaTratada, comentario: comentarioTratado },
+      });
 
       limparFormulario();
       await carregarComentarios(false);
-    } catch {
-      Alert.alert("Erro", "Nao foi possivel salvar o comentario.");
+    } catch (e: any) {
+      if (e.status === 401) {
+        Alert.alert("Entre na sua conta", "Faça login novamente para publicar o comentário.", [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Entrar", onPress: () => navigation.reset({ index: 0, routes: [{ name: "Login" }] }) },
+        ]);
+      } else {
+        Alert.alert("Erro", e.message || "Não foi possível salvar o comentário. Tente novamente.");
+      }
     } finally {
       setSalvando(false);
     }
@@ -125,13 +116,7 @@ export default function Comentarios({ navigation }: any) {
 
   const excluirComentario = async (id: number) => {
     try {
-      const resposta = await fetch(`${API_BASE_URL}/comentarios/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!resposta.ok) {
-        throw new Error("Falha ao excluir comentario");
-      }
+      await api(`/comentarios/${id}`, { method: "DELETE", autenticado: true });
 
       if (comentarioEmEdicao === id) {
         limparFormulario();
@@ -178,14 +163,14 @@ export default function Comentarios({ navigation }: any) {
       <View style={styles.cardHeader}>
         <View style={styles.autor}>
           <View style={styles.avatar}><Image source={imagens.conta} style={styles.iconeConta} /></View>
-          <View><Text style={styles.nomeAutor}>MB_337</Text><Text style={styles.data}>{formatarData(item.dataCriacao)}</Text></View>
+          <View><Text style={styles.nomeAutor}>{item.nomeAutor}</Text><Text style={styles.data}>{formatarData(item.dataCriacao)}</Text></View>
         </View>
         <Text style={styles.zona}>{item.zona}</Text>
       </View>
 
       <Text style={styles.comentario}>{item.comentario}</Text>
 
-      <View style={styles.cardActions}>
+      {usuarioId === item.idUsuario ? <View style={styles.cardActions}>
         <Pressable
           onPress={() => editarComentario(item)}
           style={({ pressed }) => [
@@ -205,7 +190,7 @@ export default function Comentarios({ navigation }: any) {
         >
           <Text style={styles.dangerButtonText}>Excluir</Text>
         </Pressable>
-      </View>
+      </View> : null}
     </View>
   );
 
@@ -295,12 +280,14 @@ export default function Comentarios({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
         <FlatList
           contentContainerStyle={styles.listContent}
           data={comentarios}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           keyExtractor={(item) => String(item.id)}
           ListEmptyComponent={
             carregando ? (

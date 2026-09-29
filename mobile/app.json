@@ -22,7 +22,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.marcelohbatistabarbosa.mobile"
+      "package": "com.marcelohbatistabarbosa.mobile",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "favicon": "./assets/images/Icon.png"
@@ -34,7 +35,13 @@
     },
     "plugins": [
       "expo-status-bar",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permitir que o Zona Vermelha use sua localização para planejar rotas."
+        }
+      ]
     ]
   }
 }

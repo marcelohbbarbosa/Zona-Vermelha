@@ -2,6 +2,7 @@ import { Router } from "express";
 import { autenticar } from "../middlewares/auth";
 import {
   listarComentarios,
+  listarMeusComentarios,
   criarComentario,
   atualizarComentario,
   deletarComentario
@@ -10,6 +11,7 @@ import {
 const router = Router();
 
 router.get("/comentarios", listarComentarios);
+router.get("/comentarios/meus", autenticar, listarMeusComentarios);
 router.post("/comentarios", autenticar, criarComentario);
 router.put("/comentarios/:id", autenticar, atualizarComentario);
 router.delete("/comentarios/:id", autenticar, deletarComentario);

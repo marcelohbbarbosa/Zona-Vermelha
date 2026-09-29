@@ -3,6 +3,7 @@ import "dotenv/config";
 import comentarioRoutes from "./routes/comentarioRoutes";
 import authRoutes from "./routes/authRoutes";
 import zonaRoutes from "./routes/zonaRoutes";
+import buscaRoutes from "./routes/buscaRoutes";
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.get("/api", (req, res) => {
 app.use(authRoutes);
 app.use(comentarioRoutes);
 app.use(zonaRoutes);
+app.use(buscaRoutes);
 
 const port = process.env.PORT || 3000;
 

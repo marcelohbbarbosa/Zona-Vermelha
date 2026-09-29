@@ -1,5 +1,5 @@
 import React from "react";
-import {view, text} from "react-native"
+import { Text, View } from "react-native";
 
 export default function title(){
     return(
@@ -9,4 +9,4 @@ export default function title(){
     )
 
 
-} 
+}

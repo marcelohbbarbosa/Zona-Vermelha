@@ -1,8 +1,9 @@
 import { Response } from "express";
 import { pool } from "../database/connection";
 import { RequestAutenticado } from "../middlewares/auth";
+import { gerarNomeAutor } from "../services/nomeAutor";
 
-const CAMPOS = `id, zona, texto AS comentario, data AS "dataCriacao", id_usuario AS "idUsuario"`;
+const CAMPOS = `id, zona, texto AS comentario, data AS "dataCriacao", id_usuario AS "idUsuario", COALESCE(nome_autor, 'Brasil 000') AS "nomeAutor"`;
 
 export async function listarComentarios(req: RequestAutenticado, res: Response) {
   const resultado = await pool.query(
@@ -11,19 +12,28 @@ export async function listarComentarios(req: RequestAutenticado, res: Response) 
   res.json(resultado.rows);
 }
 
+export async function listarMeusComentarios(req: RequestAutenticado, res: Response) {
+  const resultado = await pool.query(
+    `SELECT ${CAMPOS} FROM comentarios WHERE id_usuario = $1 AND removido = FALSE ORDER BY data DESC LIMIT 5`,
+    [req.usuario!.id],
+  );
+  return res.json(resultado.rows);
+}
+
 export async function criarComentario(req: RequestAutenticado, res: Response) {
   const { zona, comentario } = req.body;
   const idUsuario = req.usuario!.id;
+  const nomeAutor = gerarNomeAutor();
 
   if (!campoValido(zona) || !campoValido(comentario)) {
     return res.status(400).json({ mensagem: "Zona e comentario sao obrigatorios" });
   }
 
   const resultado = await pool.query(
-    `INSERT INTO comentarios (zona, texto, id_usuario)
-     VALUES ($1, $2, $3)
+    `INSERT INTO comentarios (zona, texto, id_usuario, nome_autor)
+     VALUES ($1, $2, $3, $4)
      RETURNING ${CAMPOS}`,
-    [zona.trim(), comentario.trim(), idUsuario]
+    [zona.trim(), comentario.trim(), idUsuario, nomeAutor]
   );
 
   res.status(201).json(resultado.rows[0]);

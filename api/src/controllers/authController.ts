@@ -7,7 +7,13 @@ import { enviarEmail } from "../services/emailService";
 import { RequestAutenticado } from "../middlewares/auth";
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const API_URL = (process.env.API_PUBLIC_URL || "https://zona-vermelha-backend.onrender.com").replace(/\/$/, "");
+const apiPublicUrl = process.env.API_PUBLIC_URL;
+
+if (process.env.NODE_ENV === "production" && !apiPublicUrl) {
+  throw new Error("API_PUBLIC_URL precisa apontar para o domínio público do backend em produção.");
+}
+
+const API_URL = (apiPublicUrl || "http://localhost:3000").replace(/\/$/, "");
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");

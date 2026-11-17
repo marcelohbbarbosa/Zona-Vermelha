@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "mobile",
@@ -6,24 +7,18 @@
     "orientation": "portrait",
     "icon": "./assets/images/Icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/Icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
+   
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "predictiveBackGestureEnabled": false,
+      "package": "com.marcelohbatistabarbosa.mobile",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/Icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.marcelohbatistabarbosa.mobile",
-      "softwareKeyboardLayoutMode": "resize"
+      }
     },
     "web": {
       "favicon": "./assets/images/Icon.png"
@@ -34,14 +29,20 @@
       }
     },
     "plugins": [
-      "expo-status-bar",
-      "expo-secure-store",
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Permitir que o Zona Vermelha use sua localização para planejar rotas."
-        }
-      ]
-    ]
+  "expo-status-bar",
+  "expo-secure-store",
+  "expo-splash-screen",
+  [
+    "expo-location",
+    {
+      "locationWhenInUsePermission": "Permitir que o Zona Vermelha use sua localização para planejar rotas."
+    }
+  ]
+],
+    "updates": {
+  "enabled": false,
+  "checkAutomatically": "NEVER",
+  "fallbackToCacheTimeout": 0
+}
   }
 }

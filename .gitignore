@@ -10,3 +10,5 @@ Frontend/
 dist/
 .expo/
 */.expo/
+.env.*
+!.env.example

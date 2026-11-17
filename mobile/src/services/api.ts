@@ -1,7 +1,10 @@
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
-export const API_BASE_URL = "https://zona-vermelha-backend.onrender.com";
+// Expo substitutes EXPO_PUBLIC_API_URL at build time. Use a public Railway
+// domain for installed clients; railway.internal is only reachable by services
+// inside the same Railway project and environment.
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 const TOKEN_KEY = "token";
 
 export class ApiError extends Error {

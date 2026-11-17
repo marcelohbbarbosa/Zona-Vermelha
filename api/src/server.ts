@@ -4,6 +4,7 @@ import comentarioRoutes from "./routes/comentarioRoutes";
 import authRoutes from "./routes/authRoutes";
 import zonaRoutes from "./routes/zonaRoutes";
 import buscaRoutes from "./routes/buscaRoutes";
+import routePlanningRoutes from "./routes/routePlanningRoutes";
 
 const app = express();
 
@@ -11,7 +12,7 @@ app.use(express.json());
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Admin-Token");
 
   if (req.method === "OPTIONS") {
     res.sendStatus(204);
@@ -30,6 +31,7 @@ app.use(authRoutes);
 app.use(comentarioRoutes);
 app.use(zonaRoutes);
 app.use(buscaRoutes);
+app.use(routePlanningRoutes);
 
 const port = process.env.PORT || 3000;
 

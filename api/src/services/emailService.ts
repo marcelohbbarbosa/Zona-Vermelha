@@ -29,6 +29,8 @@ export async function enviarEmail(destinatario: string, assunto: string, html: s
     });
 
     if (!resposta.ok) {
+      const detalhes = await resposta.text();
+      console.error(`[Brevo] HTTP ${resposta.status}: ${detalhes.slice(0, 1000)}`);
       throw new Error(`Falha no serviço de e-mail Brevo (${resposta.status}).`);
     }
     return;

@@ -1,37 +1,43 @@
-import nodemailer from "nodemailer";
-
 const RESEND_API_URL = "https://api.resend.com/emails";
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 export async function enviarEmail(destinatario: string, assunto: string, html: string) {
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  const remetente = process.env.EMAIL_FROM;
 
-  if (gmailUser || gmailAppPassword) {
-    if (!gmailUser || !gmailAppPassword) {
-      throw new Error("Configure GMAIL_USER e GMAIL_APP_PASSWORD para habilitar o envio pelo Gmail.");
+  if (brevoApiKey) {
+    if (!remetente) {
+      throw new Error("Configure EMAIL_FROM com um remetente verificado no Brevo.");
     }
 
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: { user: gmailUser, pass: gmailAppPassword },
+    const formatoNomeEmail = remetente.match(/^(.*)<([^>]+)>$/);
+    const senderEmail = formatoNomeEmail ? formatoNomeEmail[2].trim() : remetente.trim();
+    const senderName = formatoNomeEmail ? formatoNomeEmail[1].trim() : "Zona Vermelha";
+    const resposta = await fetch(BREVO_API_URL, {
+      method: "POST",
+      headers: {
+        "api-key": brevoApiKey,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        sender: { name: senderName || "Zona Vermelha", email: senderEmail },
+        to: [{ email: destinatario }],
+        subject: assunto,
+        htmlContent: html,
+      }),
     });
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `Zona Vermelha <${gmailUser}>`,
-      to: destinatario,
-      subject: assunto,
-      html,
-    });
+    if (!resposta.ok) {
+      throw new Error(`Falha no serviço de e-mail Brevo (${resposta.status}).`);
+    }
     return;
   }
 
   const apiKey = process.env.RESEND_API_KEY;
-  const remetente = process.env.EMAIL_FROM;
 
   if (!apiKey || !remetente) {
-    throw new Error("Configure RESEND_API_KEY e EMAIL_FROM para habilitar o envio de e-mails.");
+    throw new Error("Configure BREVO_API_KEY e EMAIL_FROM, ou RESEND_API_KEY e EMAIL_FROM, para habilitar o envio de e-mails.");
   }
 
   const resposta = await fetch(RESEND_API_URL, {

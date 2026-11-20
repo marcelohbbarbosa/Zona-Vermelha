@@ -56,7 +56,6 @@ export default function Login({ navigation }: LoginProps) {
     setCarregando(true);
     limparMensagens();
     setPrecisaConfirmar(false);
-
     try {
       const dados = await api("/auth/login", {
         method: "POST",
@@ -83,8 +82,8 @@ export default function Login({ navigation }: LoginProps) {
       setErro(
         erroApi.message || "Não foi possível realizar o login. Tente novamente."
       );
-
       setPrecisaConfirmar(erroApi.status === 403);
+
     } finally {
       setCarregando(false);
     }
@@ -127,7 +126,6 @@ export default function Login({ navigation }: LoginProps) {
 
   function alternarModoRecuperacao() {
     setModoRecuperacao((anterior) => !anterior);
-    setPrecisaConfirmar(false);
     limparMensagens();
   }
 
@@ -282,14 +280,10 @@ export default function Login({ navigation }: LoginProps) {
                 <Pressable
                   accessibilityRole="button"
                   disabled={enviandoAcao}
-                  onPress={() =>
-                    enviarAcao("/auth/reenviar-confirmacao")
-                  }
+                  onPress={() => enviarAcao("/auth/reenviar-confirmacao")}
                   style={styles.linkPressable}
                 >
-                  <Text style={styles.linkAcao}>
-                    Reenviar e-mail de confirmação
-                  </Text>
+                  <Text style={styles.linkAcao}>Reenviar e-mail de confirmação</Text>
                 </Pressable>
               ) : null}
 

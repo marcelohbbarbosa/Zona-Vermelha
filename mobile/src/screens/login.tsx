@@ -60,6 +60,7 @@ export default function Login({ navigation }: LoginProps) {
     try {
       const dados = await api("/auth/login", {
         method: "POST",
+        timeoutMs: 10000,
         body: {
           email: emailNormalizado,
           senha,
@@ -104,6 +105,7 @@ export default function Login({ navigation }: LoginProps) {
     try {
       const dados = await api(caminho, {
         method: "POST",
+        timeoutMs: 10000,
         body: {
           email: emailNormalizado,
         },

@@ -12,6 +12,7 @@ import Turismo from "./src/screens/tourism";
 import Conta from "./src/screens/account";
 import Configuracoes from "./src/screens/settings";
 import Pesquisa from "./src/screens/search";
+import AvaliacoesRegiao from "./src/screens/region-assessments";
 
 const Stack = createNativeStackNavigator();
 
@@ -76,6 +77,11 @@ export default function App() {
         <Stack.Screen
           name="Pesquisa"
           component={Pesquisa}
+        />
+
+        <Stack.Screen
+          name="AvaliacoesRegiao"
+          component={AvaliacoesRegiao}
         />
       </Stack.Navigator>
     </NavigationContainer>

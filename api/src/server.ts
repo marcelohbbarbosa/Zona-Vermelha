@@ -5,6 +5,7 @@ import authRoutes from "./routes/authRoutes";
 import zonaRoutes from "./routes/zonaRoutes";
 import buscaRoutes from "./routes/buscaRoutes";
 import routePlanningRoutes from "./routes/routePlanningRoutes";
+import regionAssessmentRoutes from "./routes/regionAssessmentRoutes";
 
 const app = express();
 
@@ -32,9 +33,10 @@ app.use(comentarioRoutes);
 app.use(zonaRoutes);
 app.use(buscaRoutes);
 app.use(routePlanningRoutes);
+app.use(regionAssessmentRoutes);
 
 const port = process.env.PORT || 3000;
 
-app.listen(port, () => {
+app.listen(Number(port), "0.0.0.0", () => {
   console.log(`Servidor rodando na porta ${port}`);
 });

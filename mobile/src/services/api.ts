@@ -42,10 +42,12 @@ type Opcoes = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
   autenticado?: boolean;
+  timeoutMs?: number;
 };
 
 export async function api(caminho: string, opcoes: Opcoes = {}) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const timeoutMs = opcoes.timeoutMs ?? 20000;
 
   if (opcoes.autenticado) {
     const token = await lerToken();
@@ -53,7 +55,7 @@ export async function api(caminho: string, opcoes: Opcoes = {}) {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const resposta = await fetch(`${API_BASE_URL}${caminho}`, {

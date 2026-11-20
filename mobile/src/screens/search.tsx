@@ -8,7 +8,7 @@ const imagens = {
   voltar: require("../../assets/images/Return.png"),
 };
 
-export default function Pesquisa({ navigation }: any) {
+export default function Pesquisa({ navigation, route }: any) {
   const [consulta, setConsulta] = useState("");
   const [locais, setLocais] = useState<Local[]>([]);
   const [carregando, setCarregando] = useState(false);
@@ -37,6 +37,13 @@ export default function Pesquisa({ navigation }: any) {
   };
 
   const escolher = (local: Local) => {
+    if (route?.params?.modo === "avaliar") {
+      navigation.replace("AvaliacoesRegiao", {
+        latitude: local.latitude,
+        longitude: local.longitude,
+      });
+      return;
+    }
     navigation.navigate("Rotas", {
       destino: local.nome,
       latitude: local.latitude,

@@ -7,7 +7,10 @@ import { enviarEmail } from "../services/emailService";
 import { RequestAutenticado } from "../middlewares/auth";
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const apiPublicUrl = process.env.API_PUBLIC_URL;
+const railwayPublicDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
+const apiPublicUrl = process.env.API_PUBLIC_URL || (railwayPublicDomain
+  ? `https://${railwayPublicDomain.replace(/^https?:\/\//, "")}`
+  : undefined);
 
 if (process.env.NODE_ENV === "production" && !apiPublicUrl) {
   throw new Error("API_PUBLIC_URL precisa apontar para o domínio público do backend em produção.");

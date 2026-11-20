@@ -7,8 +7,9 @@ import { enviarEmail } from "../services/emailService";
 import { RequestAutenticado } from "../middlewares/auth";
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const renderExternalUrl = process.env.RENDER_EXTERNAL_URL;
 const railwayPublicDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
-const apiPublicUrl = process.env.API_PUBLIC_URL || (railwayPublicDomain
+const apiPublicUrl = process.env.API_PUBLIC_URL || renderExternalUrl || (railwayPublicDomain
   ? `https://${railwayPublicDomain.replace(/^https?:\/\//, "")}`
   : undefined);
 

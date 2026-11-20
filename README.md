@@ -19,15 +19,16 @@ npm run dev
 
 A API roda em `http://localhost:3000`.
 
-## Hospedagem: Railway + Supabase
+## Hospedagem: Render + Supabase
 
-- O backend roda como um serviço Railway e escuta a porta definida pela variável `PORT`.
-- Configure `DATABASE_URL` nas variáveis do serviço Railway com a connection string PostgreSQL do Supabase. Codifique em URL caracteres especiais da senha. A conexão existente usa SSL.
-- Para desenvolver localmente, mantenha a URL em `api/.env`; esse arquivo é ignorado pelo Git. Use `api/.env.example` como referência e nunca coloque credenciais reais em arquivos versionados.
-- Aplique no Supabase as migrações necessárias do projeto, incluindo `api/src/database/migrations/20261028_rotas_risco.sql`, antes de usar as rotas correspondentes.
-- Gere um domínio público para o serviço backend na Railway. Configure esse domínio em `API_PUBLIC_URL` nas variáveis Railway e em `EXPO_PUBLIC_API_URL` no ambiente de build do app mobile. O app precisa ser compilado novamente após mudar essa variável.
-- `zona-vermelha.railway.internal` é somente para comunicação entre serviços no mesmo projeto/ambiente Railway. Use `http://zona-vermelha.railway.internal:$PORT` a partir de outro serviço Railway; navegadores e celulares fora da Railway não conseguem acessar esse endereço.
-- Configure também `JWT_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `OSRM_BASE_URL` e `ROUTE_ADMIN_TOKEN` nas variáveis Railway, conforme o uso do backend.
+- O `render.yaml` configura o backend como um serviço web gratuito, com diretório raiz `api/`, build `npm ci && npm run build` e start `npm start`.
+- Crie o serviço a partir do Blueprint deste repositório no Render. O Render gera o domínio público e fornece a porta pela variável `PORT`; o servidor escuta nessa porta em `0.0.0.0`.
+- No primeiro deploy, informe `DATABASE_URL` com a connection string PostgreSQL do Supabase. Codifique em URL caracteres especiais da senha. A conexão existente usa SSL. O Blueprint não cria outro banco.
+- O Blueprint gera `JWT_SECRET` e `ROUTE_ADMIN_TOKEN`. Para enviar confirmação e recuperação sem domínio próprio, configure `GMAIL_USER` com sua conta Gmail e `GMAIL_APP_PASSWORD` com uma senha de app do Google. `EMAIL_FROM` deve usar esse mesmo endereço. A API também mantém suporte opcional ao Resend.
+- Para desenvolver localmente, mantenha a URL do banco em `api/.env`; esse arquivo é ignorado pelo Git. Use `api/.env.example` como referência e nunca coloque credenciais reais em arquivos versionados.
+- Aplique no Supabase as migrações necessárias do projeto, incluindo `api/src/database/migrations/20261028_rotas_risco.sql` e `api/src/database/migrations/20261120_avaliacoes_regiao.sql`, antes de usar as rotas correspondentes.
+- Configure `EXPO_PUBLIC_API_URL` no `mobile/.env` e no ambiente de build do app com o domínio público `https://...onrender.com`. Reinicie o Expo após alterar a variável; para um APK, faça um novo build.
+- No plano gratuito, o serviço web pode dormir após 15 minutos sem tráfego e demorar para responder à primeira requisição seguinte. O banco continua no Supabase.
 
 ## Rodar o app
 
@@ -37,17 +38,6 @@ npm install
 npm run web
 ```
 
-Configure `EXPO_PUBLIC_API_URL` para a URL que o app deve acessar. Para acessar um backend local no Android Emulator, use `http://10.0.2.2:3000`; em produção, use o domínio público Railway.
+Configure `EXPO_PUBLIC_API_URL` para a URL que o app deve acessar. Para acessar um backend local no Android Emulator, use `http://10.0.2.2:3000`; em produção, use o domínio público do Render.
 
 
-## Planejamento de rotas com risco
-O backend existente foi estendido sem substituir os endpoints de autenticação, zonas, comentários e busca. Leia `api/docs/ROTAS_E_RISCOS.md` e `api/docs/FONTES_OFICIAIS.md`.
-
-1. Faça backup do banco.
-2. Aplique `api/src/database/migrations/20261028_rotas_risco.sql` no mesmo PostgreSQL/PostGIS.
-3. Configure `OSRM_BASE_URL` e `ROUTE_ADMIN_TOKEN` no ambiente do backend.
-4. Instale/build/deploy o backend atualizado.
-5. Teste `POST /rotas/calcular` localmente antes de publicar.
-6. Atualize o app móvel para apontar para a URL do backend que recebeu o deploy.
-
-A integração automática da Defesa Civil não está ativa: as fontes e autorizações precisam ser confirmadas primeiro. O OSRM público e os pesos de risco são somente para protótipo.

@@ -100,14 +100,14 @@ export async function solicitarRedefinicao(req: Request, res: Response) {
   const token = tokenAleatorio();
   const resultado = await pool.query(
     `UPDATE usuarios SET token_redefinicao_hash = $2, token_redefinicao_expira_em = NOW() + INTERVAL '1 hour'
-     WHERE email = $1 AND email_verificado = TRUE RETURNING email`,
+     WHERE email = $1 RETURNING email`,
     [email, hashToken(token)],
   );
   if (resultado.rowCount) {
     const link = `${API_URL}/auth/redefinir-senha?token=${token}`;
     await enviarEmail(email, "Redefina sua senha - Zona Vermelha", `<p>Este link expira em uma hora. <a href="${link}">Clique aqui para escolher uma nova senha</a>.</p>`);
   }
-  return res.json({ mensagem: "Se houver uma conta confirmada para esse endereço, enviaremos instruções para redefinir a senha." });
+  return res.json({ mensagem: "Se houver uma conta cadastrada para esse endereço, enviaremos instruções para redefinir a senha." });
 }
 
 export async function redefinirSenha(req: Request, res: Response) {

@@ -17,7 +17,6 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.9.1",
-    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.20.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^6.0.3"
@@ -27,7 +26,6 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^10.6.1",
     "pg": "^8.23.1"
   }
 }

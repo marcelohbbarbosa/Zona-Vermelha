@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: zona-vermelha-api
+    runtime: node
+    plan: free
+    rootDir: api
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: RESEND_API_KEY
+        sync: false
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: OSRM_BASE_URL
+        value: https://router.project-osrm.org
+      - key: ROUTE_ADMIN_TOKEN
+        generateValue: true

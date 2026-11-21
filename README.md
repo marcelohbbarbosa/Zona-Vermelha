@@ -4,7 +4,7 @@ O Zona Vermelha ajuda você a consultar relatos da comunidade, avaliar áreas, p
 
 ## Instalar no Android
 
-1. [Baixe o APK do Zona Vermelha](https://expo.dev/artifacts/eas/DXHtqifxVjsrukCAeczBvqCtNPiDnG6B35sWGqzLWnM.apk) no celular.
+1. [Baixe o APK do Zona Vermelha](https://marcelohbbarbosa.github.io/Zona-Vermelha-Site/) no celular.
 2. Abra o arquivo baixado e confirme a instalação. Se o Android pedir, permita a instalação de aplicativos baixados pelo navegador.
 3. Abra **Zona Vermelha** na lista de aplicativos.
 

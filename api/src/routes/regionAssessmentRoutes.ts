@@ -4,7 +4,8 @@ import { autenticar, RequestAutenticado } from "../middlewares/auth";
 import { gerarNomeAutor } from "../services/nomeAutor";
 
 const router = Router();
-const TAMANHO_CELULA = 0.002;
+// Células de aproximadamente 400 m, que cobrem em geral 4 a 8 quarteirões.
+const TAMANHO_CELULA = 0.004;
 const TAGS = [
   { id: "boa_iluminacao", nome: "Boa iluminação", nivel: 1 },
   { id: "policiamento_presente", nome: "Policiamento presente", nivel: 1 },

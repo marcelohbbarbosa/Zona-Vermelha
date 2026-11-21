@@ -6,7 +6,6 @@ import Contatos from "./src/screens/contact";
 import Login from "./src/screens/login";
 import Register from "./src/screens/register";
 import Sobre from "./src/screens/about";
-import Comentarios from "./src/screens/comments";
 import Rotas from "./src/screens/routes";
 import Turismo from "./src/screens/tourism";
 import Conta from "./src/screens/account";
@@ -51,7 +50,7 @@ export default function App() {
 
         <Stack.Screen
           name="Comentarios"
-          component={Comentarios}
+          component={AvaliacoesRegiao}
         />
 
         <Stack.Screen

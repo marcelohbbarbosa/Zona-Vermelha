@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
-import MapView, { Circle, Marker, type Region } from "react-native-maps";
+import MapView, { Marker, Polygon, type Region } from "react-native-maps";
 import { ApiError, api } from "../services/api";
 
 type Coordenadas = { latitude: number; longitude: number };
@@ -96,7 +96,21 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
     return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
   }, [route?.params?.latitude, route?.params?.longitude]);
   const [local, setLocal] = useState<Coordenadas | null>(coordenadasIniciais);
-  const [zona, setZona] = useState("");
+  const limitesZona = useMemo(() => {
+    if (!local) return [];
+    const tamanho = 0.004;
+    const sul = Math.floor(local.latitude / tamanho) * tamanho;
+    const oeste = Math.floor(local.longitude / tamanho) * tamanho;
+    const norte = sul + tamanho;
+    const leste = oeste + tamanho;
+    return [
+      { latitude: sul, longitude: oeste },
+      { latitude: sul, longitude: leste },
+      { latitude: norte, longitude: leste },
+      { latitude: norte, longitude: oeste },
+    ];
+  }, [local]);
+  const [zona, setZona] = useState(typeof route?.params?.zona === "string" ? route.params.zona : "");
   const [permissaoNegada, setPermissaoNegada] = useState(false);
   const [corTagAtiva, setCorTagAtiva] = useState<"verde" | "amarelo" | "vermelho">("verde");
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<Categoria[]>([]);
@@ -145,6 +159,14 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
 
   useEffect(() => {
     if (!local) return;
+    const zonaInicial = typeof route?.params?.zona === "string" ? route.params.zona : "";
+    const correspondeAoPontoTuristico = Boolean(coordenadasIniciais
+      && Math.abs(local.latitude - coordenadasIniciais.latitude) < 0.000001
+      && Math.abs(local.longitude - coordenadasIniciais.longitude) < 0.000001);
+    if (zonaInicial && correspondeAoPontoTuristico) {
+      setZona(zonaInicial);
+      return;
+    }
     let ativo = true;
     const preencherZona = async () => {
       const fallback = `Região ${local.latitude.toFixed(4)}, ${local.longitude.toFixed(4)}`;
@@ -163,7 +185,7 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
     };
     void preencherZona();
     return () => { ativo = false; };
-  }, [local]);
+  }, [local, coordenadasIniciais, route?.params?.zona]);
 
   useEffect(() => {
     if (local) mapaRef.current?.animateToRegion({ ...local, latitudeDelta: 0.009, longitudeDelta: 0.009 }, 350);
@@ -210,8 +232,8 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
           <Image source={require("../../assets/images/Return.png")} style={styles.backIcon} />
         </Pressable>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Avaliações da região</Text>
-          <Text style={styles.subtitle}>Relatos recentes ajudam a orientar a comunidade.</Text>
+          <Text style={styles.title}>Comentários da região</Text>
+          <Text style={styles.subtitle}>Veja avaliações e relate algo neste setor do mapa.</Text>
         </View>
       </View>
 
@@ -222,8 +244,8 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
             <Text style={styles.locationButtonText}>Usar minha localização</Text>
           </Pressable>
         </View>
-        <Text style={styles.helper}>O mapa começa na sua posição. Toque em outro ponto para mudar. A área avaliada tem cerca de 200 m.</Text>
-        <Text style={styles.zoneLabel}>Zona preenchida pela localização</Text>
+        <Text style={styles.helper}>O mapa começa na sua posição. Toque em outro ponto para mudar. Cada zona cobre cerca de 400 m, em geral 4 a 8 quarteirões dependendo da região. Os relatos de outras zonas ficam separados.</Text>
+        <Text style={styles.zoneLabel}>Nome ou endereço da área avaliada</Text>
         <TextInput
           maxLength={200}
           onChangeText={setZona}
@@ -241,7 +263,7 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
             style={styles.map}
           >
             {local ? <>
-              <Circle center={local} radius={140} fillColor="rgba(214,158,0,0.14)" strokeColor="rgba(214,158,0,0.75)" strokeWidth={2} />
+              <Polygon coordinates={limitesZona} fillColor="rgba(214,158,0,0.14)" strokeColor="rgba(214,158,0,0.75)" strokeWidth={2} />
               <Marker coordinate={local} pinColor={CORES[resumo?.status ?? "sem_dados"]} title="Local selecionado" />
             </> : null}
           </MapView>

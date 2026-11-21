@@ -53,6 +53,7 @@ type ResultadoRota = {
   distancia: number;
   duracao: number;
   aviso?: string;
+  limiteDesvio?: boolean;
   risco?: AlternativaRota["risk"];
 };
 
@@ -238,7 +239,7 @@ export default function Rotas({ navigation, route }: any) {
     setAvisoRota("");
   };
 
-  const selecionarAlternativa = (alternativa: AlternativaRota, aviso?: string) => {
+  const selecionarAlternativa = (alternativa: AlternativaRota, aviso?: string, limiteDesvio = false) => {
     const coordenadas = alternativa.geometry.coordinates.map(([longitude, latitude]) => ({ latitude, longitude }));
     setResultadoRota({
       id: alternativa.id,
@@ -246,6 +247,7 @@ export default function Rotas({ navigation, route }: any) {
       distancia: alternativa.distanceMeters,
       duracao: alternativa.durationSeconds,
       aviso,
+      limiteDesvio,
       risco: alternativa.risk,
     });
     setRotaSalvaId(null);
@@ -372,7 +374,7 @@ export default function Rotas({ navigation, route }: any) {
               || Math.abs(item.longitude - destinoRecente.longitude) > 0.0001),
           ),
         ].slice(0, 8));
-        selecionarAlternativa(rotaCalculada, dados.warning);
+        selecionarAlternativa(rotaCalculada, dados.warning, dados.avoidanceFallback === true);
       } else {
         setErroBusca(dados.warning || "Não foi possível encontrar uma rota entre esses endereços.");
       }
@@ -659,9 +661,9 @@ export default function Rotas({ navigation, route }: any) {
               </Text>
             ) : null}
             {resultadoRota.risco?.blocked ? (
-              <Text style={styles.avisoRisco}>Esta alternativa cruza uma zona marcada para evitar. Você a selecionou manualmente.</Text>
+              <Text style={styles.avisoRisco}>Esta alternativa cruza uma zona marcada para evitar.</Text>
             ) : null}
-            <Text style={styles.aviso}>
+            <Text style={resultadoRota.limiteDesvio ? styles.avisoRisco : styles.aviso}>
               {resultadoRota.aviso || "Estimativa para deslocamento de carro. Não é garantia de segurança nem considera necessariamente o trânsito em tempo real."}
             </Text>
             {!rotaSalvaId ? (

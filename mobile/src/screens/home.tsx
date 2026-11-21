@@ -72,17 +72,13 @@ export default function Home({ navigation }: any) {
     navigation.navigate("AvaliacoesRegiao", ponto);
   };
 
-  const resumoSelecionado = selecionado
-    ? resumos.find((item) => item.celulaLat === Math.floor(selecionado.latitude / 0.002)
-      && item.celulaLng === Math.floor(selecionado.longitude / 0.002))
-    : undefined;
-
   return (
     <View style={styles.container}>
       <MapView
         ref={mapaRef}
         initialRegion={REGIAO_INICIAL}
         onPress={(event) => setSelecionado(event.nativeEvent.coordinate)}
+        onLongPress={(event) => abrirAvaliacao(event.nativeEvent.coordinate)}
         onRegionChangeComplete={setRegiao}
         showsUserLocation
         style={styles.map}
@@ -102,43 +98,36 @@ export default function Home({ navigation }: any) {
       </MapView>
 
       <View style={styles.top}>
-        <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Pesquisa", { modo: "avaliar" })} style={styles.search}>
+        <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Pesquisa")} style={styles.search}>
           <Image source={require("../../assets/images/Search.png")} style={styles.searchIcon} />
-          <Text style={styles.searchText}>Pesquisar endereço ou bairro</Text>
+          <Text style={styles.searchText}>Pesquise aqui</Text>
+          <Image source={require("../../assets/images/Mic.png")} style={styles.micIcon} />
         </Pressable>
-        <View style={styles.topActions}>
-          <Pressable accessibilityLabel="Minha conta" onPress={() => navigation.navigate("Conta")} style={styles.roundButton}>
-            <Image source={require("../../assets/images/Account.png")} style={styles.topIcon} />
-          </Pressable>
-          <Pressable accessibilityLabel="Configurações" onPress={() => navigation.navigate("Configuracoes")} style={styles.roundButton}>
-            <Image source={require("../../assets/images/Config.png")} style={styles.topIcon} />
-          </Pressable>
-        </View>
+      </View>
+      <View style={styles.topActions}>
+        <Pressable accessibilityLabel="Minha conta" onPress={() => navigation.navigate("Conta")} style={styles.roundButton}>
+          <Image source={require("../../assets/images/Account.png")} style={styles.topIcon} />
+        </Pressable>
+        <Pressable accessibilityLabel="Configurações" onPress={() => navigation.navigate("Configuracoes")} style={styles.roundButton}>
+          <Image source={require("../../assets/images/Config.png")} style={styles.topIcon} />
+        </Pressable>
       </View>
 
       <Pressable accessibilityLabel="Centralizar na minha localização" onPress={() => void centralizarNaLocalizacao(true)} style={styles.locateButton}>
         {localizando ? <ActivityIndicator color="#8b0000" size="small" /> : <Text style={styles.locateGlyph}>◎</Text>}
       </Pressable>
 
+      {erroMapa ? <Text style={styles.mapError}>{erroMapa}</Text> : null}
       <View style={styles.bottomPanel}>
-        <Text style={styles.panelTitle}>Como está esta região?</Text>
-        <Text style={styles.panelText}>
-          {selecionado
-            ? resumoSelecionado
-              ? `${resumoSelecionado.total} avaliações • ${resumoSelecionado.status === "verde" ? "bem avaliada" : resumoSelecionado.status === "amarelo" ? "em alerta" : "com relatos de risco"}`
-              : "Toque no mapa para escolher outro local ou avalie este ponto."
-            : "Toque no mapa para escolher um local e ver as avaliações."}
-        </Text>
-        {erroMapa ? <Text style={styles.mapError}>{erroMapa}</Text> : null}
-        <Pressable onPress={() => abrirAvaliacao()} style={styles.evaluateButton}>
-          <Text style={styles.evaluateText}>Avaliar este local</Text>
+        <Pressable accessibilityLabel="Comentários" onPress={() => navigation.navigate("Comentarios")} style={styles.navButton}>
+          <Image source={require("../../assets/images/Comment.png")} style={styles.navIcon} />
         </Pressable>
-        <View style={styles.navigation}>
-          <Pressable onPress={() => abrirAvaliacao()} style={styles.navItem}><Text style={styles.navIcon}>●</Text><Text style={styles.navLabel}>Avaliações</Text></Pressable>
-          <Pressable onPress={() => navigation.navigate("Rotas")} style={styles.navItem}><Text style={styles.navIcon}>↗</Text><Text style={styles.navLabel}>Rotas</Text></Pressable>
-          <Pressable onPress={() => navigation.navigate("Turismo")} style={styles.navItem}><Text style={styles.navIcon}>⌖</Text><Text style={styles.navLabel}>Turismo</Text></Pressable>
-          <Pressable onPress={() => navigation.navigate("Comentarios")} style={styles.navItem}><Text style={styles.navIcon}>☰</Text><Text style={styles.navLabel}>Comentários</Text></Pressable>
-        </View>
+        <Pressable accessibilityLabel="Rotas" onPress={() => navigation.navigate("Rotas")} style={[styles.navButton, styles.routeButton]}>
+          <Image source={require("../../assets/images/Route.png")} style={styles.routeIcon} />
+        </Pressable>
+        <Pressable accessibilityLabel="Turismo" onPress={() => navigation.navigate("Turismo")} style={styles.navButton}>
+          <Image source={require("../../assets/images/Turism.png")} style={styles.navIcon} />
+        </Pressable>
       </View>
     </View>
   );
@@ -147,23 +136,20 @@ export default function Home({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { backgroundColor: "#e7e9ec", flex: 1 },
   map: { flex: 1 },
-  top: { flexDirection: "row", gap: 10, left: 16, position: "absolute", right: 16, top: 54 },
-  search: { alignItems: "center", backgroundColor: "#fff", borderRadius: 26, elevation: 8, flex: 1, flexDirection: "row", minHeight: 52, paddingHorizontal: 14 },
+  top: { left: 16, position: "absolute", right: 16, top: 32 },
+  search: { alignItems: "center", backgroundColor: "#fff", borderRadius: 26, elevation: 8, flexDirection: "row", minHeight: 40, paddingHorizontal: 12 },
   searchIcon: { height: 20, resizeMode: "contain", width: 20 },
-  searchText: { color: "#68717c", flex: 1, fontSize: 14, paddingLeft: 9 },
-  topActions: { gap: 8 },
-  roundButton: { alignItems: "center", backgroundColor: "#fff", borderRadius: 21, elevation: 7, height: 42, justifyContent: "center", width: 42 },
-  topIcon: { height: 21, resizeMode: "contain", width: 21 },
-  locateButton: { alignItems: "center", backgroundColor: "#fff", borderRadius: 24, bottom: 300, elevation: 6, height: 48, justifyContent: "center", position: "absolute", right: 18, width: 48 },
+  searchText: { color: "#111827", flex: 1, fontSize: 15, paddingLeft: 8 },
+  micIcon: { height: 21, resizeMode: "contain", width: 18 },
+  topActions: { alignItems: "flex-end", gap: 7, position: "absolute", right: 18, top: 74 },
+  roundButton: { alignItems: "center", backgroundColor: "#fff", borderRadius: 20, elevation: 7, height: 40, justifyContent: "center", width: 40 },
+  topIcon: { height: 22, resizeMode: "contain", width: 22 },
+  locateButton: { alignItems: "center", backgroundColor: "#fff", borderRadius: 17, bottom: 122, elevation: 6, height: 34, justifyContent: "center", position: "absolute", right: 14, width: 34 },
   locateGlyph: { color: "#8b0000", fontSize: 27, fontWeight: "700", lineHeight: 30 },
-  bottomPanel: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, bottom: 0, elevation: 12, left: 0, paddingBottom: 24, paddingHorizontal: 18, paddingTop: 18, position: "absolute", right: 0 },
-  panelTitle: { color: "#22272e", fontSize: 18, fontWeight: "800" },
-  panelText: { color: "#68717c", fontSize: 13, marginTop: 4 },
-  mapError: { color: "#b42318", fontSize: 11, marginTop: 4 },
-  evaluateButton: { alignItems: "center", backgroundColor: "#c83232", borderRadius: 12, justifyContent: "center", marginTop: 12, minHeight: 46 },
-  evaluateText: { color: "#fff", fontSize: 15, fontWeight: "800" },
-  navigation: { borderTopColor: "#edf0f3", borderTopWidth: 1, flexDirection: "row", justifyContent: "space-around", marginTop: 12, paddingTop: 10 },
-  navItem: { alignItems: "center", minWidth: 58 },
-  navIcon: { color: "#8b0000", fontSize: 19, fontWeight: "700" },
-  navLabel: { color: "#505963", fontSize: 10, marginTop: 2 },
+  mapError: { alignSelf: "center", backgroundColor: "#fff", borderRadius: 8, bottom: 145, color: "#b42318", fontSize: 11, padding: 7, position: "absolute" },
+  bottomPanel: { alignItems: "center", backgroundColor: "#f8f8ff", bottom: 0, elevation: 12, flexDirection: "row", height: 118, justifyContent: "center", gap: 22, left: 0, paddingBottom: 4, position: "absolute", right: 0 },
+  navButton: { alignItems: "center", backgroundColor: "#d1d5db", borderRadius: 33, elevation: 5, height: 66, justifyContent: "center", width: 66 },
+  routeButton: { backgroundColor: "#bd2026", borderRadius: 39, height: 78, width: 78 },
+  navIcon: { height: 34, resizeMode: "contain", width: 34 },
+  routeIcon: { height: 44, resizeMode: "contain", width: 44 },
 });

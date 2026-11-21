@@ -111,6 +111,7 @@ export default function Rotas({ navigation, route }: any) {
   const [carregandoRota, setCarregandoRota] = useState(false);
   const [localizando, setLocalizando] = useState(false);
   const [erroBusca, setErroBusca] = useState("");
+  const solicitouLocalizacaoInicial = useRef(false);
 
   useEffect(() => {
     if (!destinoInicial) return;
@@ -140,22 +141,25 @@ export default function Rotas({ navigation, route }: any) {
     }
 
     let cancelado = false;
+    const controller = new AbortController();
 
     const temporizador = setTimeout(async () => {
       try {
         const locais = (await api(
           `/locais/buscar?q=${encodeURIComponent(origem.trim())}`,
+          { signal: controller.signal },
         )) as Local[];
 
         if (!cancelado) setResultadosOrigem(locais);
       } catch {
         if (!cancelado) setResultadosOrigem([]);
       }
-    }, 450);
+    }, 850);
 
     return () => {
       cancelado = true;
       clearTimeout(temporizador);
+      controller.abort();
     };
   }, [origem, origemCoordenadas, campoAtivo]);
 
@@ -171,22 +175,25 @@ export default function Rotas({ navigation, route }: any) {
     }
 
     let cancelado = false;
+    const controller = new AbortController();
 
     const temporizador = setTimeout(async () => {
       try {
         const locais = (await api(
           `/locais/buscar?q=${encodeURIComponent(destino.trim())}`,
+          { signal: controller.signal },
         )) as Local[];
 
         if (!cancelado) setResultadosDestino(locais);
       } catch {
         if (!cancelado) setResultadosDestino([]);
       }
-    }, 450);
+    }, 850);
 
     return () => {
       cancelado = true;
       clearTimeout(temporizador);
+      controller.abort();
     };
   }, [destino, destinoCoordenadas, campoAtivo]);
 
@@ -278,6 +285,12 @@ export default function Rotas({ navigation, route }: any) {
       setLocalizando(false);
     }
   };
+
+  useEffect(() => {
+    if (solicitouLocalizacaoInicial.current) return;
+    solicitouLocalizacaoInicial.current = true;
+    void usarLocalizacao();
+  }, []);
 
   const selecionarOrigem = (local: Local) => {
     setOrigem(local.nome);

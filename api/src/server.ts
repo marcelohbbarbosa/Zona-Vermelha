@@ -35,6 +35,17 @@ app.use(buscaRoutes);
 app.use(routePlanningRoutes);
 app.use(regionAssessmentRoutes);
 
+app.use((error: any, req: Request, res: Response, _next: NextFunction) => {
+  console.error("[API] Falha ao processar requisição", {
+    method: req.method,
+    path: req.path,
+    message: error?.message,
+    code: error?.code,
+  });
+  if (res.headersSent) return;
+  return res.status(500).json({ mensagem: "Erro inesperado" });
+});
+
 const port = process.env.PORT || 3000;
 
 app.listen(Number(port), "0.0.0.0", () => {

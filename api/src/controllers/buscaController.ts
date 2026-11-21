@@ -7,16 +7,22 @@ export async function buscarLocais(req: Request, res: Response) {
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.search = new URLSearchParams({
     format: "jsonv2",
-    q: `${consulta}, Baixada Santista, Brasil`,
+    q: consulta,
     countrycodes: "br",
-    viewbox: "-47.5,-23.4,-45.5,-24.8",
+    viewbox: "-46.8,-23.7,-45.7,-24.2",
     bounded: "1",
     limit: "8",
   }).toString();
 
-  const resposta = await fetch(url, {
-    headers: { "User-Agent": "ZonaVermelha/1.0 (zonavermelhabackend@gmail.com)" },
-  });
+  let resposta: globalThis.Response;
+  try {
+    resposta = await fetch(url, {
+      headers: { "User-Agent": "ZonaVermelha/1.0 (zonavermelhabackend@gmail.com)" },
+      signal: AbortSignal.timeout(12000),
+    });
+  } catch {
+    return res.status(502).json({ mensagem: "O serviço de busca está indisponível. Tente novamente." });
+  }
   if (!resposta.ok) return res.status(502).json({ mensagem: "O serviço de busca está indisponível. Tente novamente." });
 
   const dados = await resposta.json() as Array<{ place_id: number; display_name: string; lat: string; lon: string }>;

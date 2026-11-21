@@ -17,14 +17,17 @@ import { ApiError, api } from "../services/api";
 
 type Coordenadas = { latitude: number; longitude: number };
 type Status = "verde" | "amarelo" | "vermelho" | "sem_dados";
-type Categoria = "assalto" | "infraestrutura" | "acidente" | "iluminacao" | "outro";
+type Categoria =
+  | "assalto" | "infraestrutura" | "acidente" | "iluminacao" | "outro"
+  | "boa_iluminacao" | "policiamento_presente" | "via_conservada" | "local_movimentado" | "ambiente_tranquilo"
+  | "iluminacao_ruim" | "buracos_na_via" | "calcada_danificada" | "alagamento" | "sinalizacao_danificada" | "lixo_acumulado"
+  | "furto" | "ameaca_agressao" | "assedio" | "comercio_drogas";
 type Avaliacao = {
   id: number;
-  categoria: Categoria;
-  avaliacao: Exclude<Status, "sem_dados">;
+  zona: string | null;
+  tags: { id: number; nome: string; nivel: number; cor: "verde" | "amarelo" | "vermelho" }[];
   comentario: string | null;
   criadaEm: string;
-  atualizadaEm: string;
 };
 type Resumo = Coordenadas & {
   status: Status;
@@ -42,13 +45,30 @@ const CENTRO_INICIAL: Region = {
   longitudeDelta: 0.035,
 };
 
-const CATEGORIAS: { id: Categoria; titulo: string }[] = [
-  { id: "assalto", titulo: "Assalto" },
-  { id: "infraestrutura", titulo: "Infraestrutura" },
-  { id: "acidente", titulo: "Acidente" },
-  { id: "iluminacao", titulo: "Iluminação" },
-  { id: "outro", titulo: "Outro" },
-];
+const TAGS: Record<"verde" | "amarelo" | "vermelho", { id: Categoria; titulo: string }[]> = {
+  verde: [
+    { id: "boa_iluminacao", titulo: "Boa iluminação" },
+    { id: "policiamento_presente", titulo: "Policiamento presente" },
+    { id: "via_conservada", titulo: "Rua bem conservada" },
+    { id: "local_movimentado", titulo: "Local movimentado" },
+    { id: "ambiente_tranquilo", titulo: "Ambiente tranquilo" },
+  ],
+  amarelo: [
+    { id: "iluminacao_ruim", titulo: "Iluminação ruim" },
+    { id: "buracos_na_via", titulo: "Buracos na via" },
+    { id: "calcada_danificada", titulo: "Calçada danificada" },
+    { id: "alagamento", titulo: "Alagamento" },
+    { id: "sinalizacao_danificada", titulo: "Sinalização danificada" },
+    { id: "lixo_acumulado", titulo: "Lixo acumulado" },
+  ],
+  vermelho: [
+    { id: "assalto", titulo: "Assalto ou roubo" },
+    { id: "furto", titulo: "Furto" },
+    { id: "ameaca_agressao", titulo: "Ameaça ou agressão" },
+    { id: "assedio", titulo: "Assédio" },
+    { id: "comercio_drogas", titulo: "Comércio de drogas" },
+  ],
+};
 
 const CORES: Record<Status, string> = {
   verde: "#2f9e44",
@@ -76,9 +96,10 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
     return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
   }, [route?.params?.latitude, route?.params?.longitude]);
   const [local, setLocal] = useState<Coordenadas | null>(coordenadasIniciais);
+  const [zona, setZona] = useState("");
   const [permissaoNegada, setPermissaoNegada] = useState(false);
-  const [categoria, setCategoria] = useState<Categoria>("infraestrutura");
-  const [avaliacao, setAvaliacao] = useState<"verde" | "amarelo" | "vermelho">("amarelo");
+  const [corTagAtiva, setCorTagAtiva] = useState<"verde" | "amarelo" | "vermelho">("verde");
+  const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<Categoria[]>([]);
   const [comentario, setComentario] = useState("");
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -123,6 +144,28 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
   }, [local, carregarResumo]);
 
   useEffect(() => {
+    if (!local) return;
+    let ativo = true;
+    const preencherZona = async () => {
+      const fallback = `Região ${local.latitude.toFixed(4)}, ${local.longitude.toFixed(4)}`;
+      try {
+        const enderecos = await Location.reverseGeocodeAsync(local);
+        const endereco = enderecos[0];
+        const rua = [endereco?.street, endereco?.streetNumber].filter(Boolean).join(", ");
+        const municipio = endereco?.city ?? endereco?.subregion ?? endereco?.region;
+        const nomeZona = [rua, endereco?.district, municipio]
+          .filter((parte, indice, partes) => Boolean(parte) && partes.indexOf(parte) === indice)
+          .join(" · ") || fallback;
+        if (ativo) setZona(nomeZona);
+      } catch {
+        if (ativo) setZona(fallback);
+      }
+    };
+    void preencherZona();
+    return () => { ativo = false; };
+  }, [local]);
+
+  useEffect(() => {
     if (local) mapaRef.current?.animateToRegion({ ...local, latitudeDelta: 0.009, longitudeDelta: 0.009 }, 350);
   }, [local]);
 
@@ -131,14 +174,19 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
       Alert.alert("Escolha um local", "Use sua localização atual ou toque no mapa para escolher onde ocorreu o problema.");
       return;
     }
+    if (!categoriasSelecionadas.length) {
+      Alert.alert("Escolha uma tag", "Selecione uma tag verde, amarela ou vermelha antes de publicar.");
+      return;
+    }
     setSalvando(true);
     try {
       await api("/avaliacoes-regiao", {
         method: "POST",
         autenticado: true,
-        body: { ...local, categoria, avaliacao, comentario: comentario.trim() || null },
+        body: { ...local, zona, tags: categoriasSelecionadas, comentario: comentario.trim() || null },
       });
       setComentario("");
+      setCategoriasSelecionadas([]);
       Alert.alert("Avaliação registrada", "Sua avaliação já foi incluída no resumo desta região.");
       await carregarResumo(local);
     } catch (e: any) {
@@ -175,6 +223,15 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
           </Pressable>
         </View>
         <Text style={styles.helper}>O mapa começa na sua posição. Toque em outro ponto para mudar. A área avaliada tem cerca de 200 m.</Text>
+        <Text style={styles.zoneLabel}>Zona preenchida pela localização</Text>
+        <TextInput
+          maxLength={200}
+          onChangeText={setZona}
+          placeholder="Localizando rua e bairro..."
+          placeholderTextColor="#77808c"
+          style={styles.zoneInput}
+          value={zona}
+        />
         <View style={styles.mapFrame}>
           <MapView
             ref={mapaRef}
@@ -210,27 +267,44 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
         ) : null}
         {erro ? <Text style={styles.error}>{erro}</Text> : null}
 
-        <Text style={styles.sectionTitle}>Adicionar uma avaliação</Text>
-        <Text style={styles.helper}>Escolha o tipo de ocorrência e como você avalia este local.</Text>
-        <View style={styles.chips}>
-          {CATEGORIAS.map((item) => (
-            <Pressable key={item.id} onPress={() => setCategoria(item.id)} style={[styles.chip, categoria === item.id && styles.chipSelected]}>
-              <Text style={[styles.chipText, categoria === item.id && styles.chipTextSelected]}>{item.titulo}</Text>
-            </Pressable>
-          ))}
-        </View>
-        <View style={styles.ratings}>
+        <Text style={styles.sectionTitle}>Tags da avaliação</Text>
+        <Text style={styles.helper}>Escolha uma tag. A cor define como ela afeta a avaliação desta zona.</Text>
+        <View style={styles.colorTabs}>
           {([
-            ["verde", "Bom", "#2f9e44"],
-            ["amarelo", "Alerta", "#d69e00"],
-            ["vermelho", "Perigoso", "#d94848"],
-          ] as const).map(([id, titulo, cor]) => (
-            <Pressable key={id} onPress={() => setAvaliacao(id)} style={[styles.ratingOption, avaliacao === id && { borderColor: cor, backgroundColor: `${cor}16` }]}>
-              <View style={[styles.ratingDot, { backgroundColor: cor }]} />
-              <Text style={styles.ratingText}>{titulo}</Text>
+            ["verde", "Verde · bom"],
+            ["amarelo", "Amarelo · alerta"],
+            ["vermelho", "Vermelho · risco"],
+          ] as const).map(([cor, titulo]) => (
+            <Pressable
+              key={cor}
+              onPress={() => setCorTagAtiva(cor)}
+              style={[styles.colorTab, corTagAtiva === cor && { backgroundColor: CORES[cor], borderColor: CORES[cor] }]}
+            >
+              <Text style={[styles.colorTabText, corTagAtiva === cor && styles.colorTabTextSelected]}>{titulo}</Text>
             </Pressable>
           ))}
         </View>
+        <View style={styles.chips}>
+          {TAGS[corTagAtiva].map((item) => (
+            <Pressable
+              key={item.id}
+              onPress={() => setCategoriasSelecionadas((selecionadas) => selecionadas.includes(item.id)
+                ? selecionadas.filter((id) => id !== item.id)
+                : [...selecionadas, item.id])}
+              style={[styles.chip, categoriasSelecionadas.includes(item.id) && { backgroundColor: CORES[corTagAtiva], borderColor: CORES[corTagAtiva] }]}
+            >
+              <Text style={[styles.chipText, categoriasSelecionadas.includes(item.id) && styles.chipTextSelected]}>{item.titulo}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {corTagAtiva === "vermelho" ? (
+          <Text style={styles.tagNote}>Marque uma ocorrência ou comportamento concreto, como ameaça ou agressão. Não classifique alguém como perigoso apenas por sua condição de saúde ou uso de substâncias.</Text>
+        ) : null}
+        {categoriasSelecionadas.length ? (
+          <Text style={styles.selectedTag}>
+            Tags selecionadas: {TAGS.verde.concat(TAGS.amarelo, TAGS.vermelho).filter((tag) => categoriasSelecionadas.includes(tag.id)).map((tag) => tag.titulo).join(", ")}
+          </Text>
+        ) : null}
         <TextInput
           maxLength={1000}
           multiline
@@ -244,17 +318,21 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
         <Pressable disabled={salvando} onPress={() => void salvar()} style={[styles.submit, salvando && styles.disabled]}>
           {salvando ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Publicar avaliação</Text>}
         </Pressable>
-        <Text style={styles.scoringNote}>O resumo considera os últimos 90 dias: verde melhora o resultado, amarelo indica alerta e vermelho pesa o dobro. Cada pessoa pode manter uma avaliação por área de cerca de 200 m; uma nova publicação atualiza a anterior.</Text>
+        <Text style={styles.scoringNote}>O resumo considera os últimos 90 dias: tags verdes melhoram o resultado, amarelas indicam alerta e vermelhas pesam o dobro. Você pode selecionar várias tags nesta publicação.</Text>
 
         <Text style={[styles.sectionTitle, styles.reportsTitle]}>Relatos desta área</Text>
         {resumo?.relatos.length ? resumo.relatos.map((item) => (
           <View key={item.id} style={styles.reportCard}>
-            <View style={styles.reportTop}>
-              <Text style={styles.reportCategory}>{CATEGORIAS.find((c) => c.id === item.categoria)?.titulo ?? "Outro"}</Text>
-              <Text style={[styles.reportRating, { color: CORES[item.avaliacao] }]}>{item.avaliacao === "verde" ? "Bom" : item.avaliacao === "amarelo" ? "Alerta" : "Perigoso"}</Text>
+            <View style={styles.reportTags}>
+              {item.tags.map((tag) => (
+                <View key={tag.id} style={[styles.reportTag, { backgroundColor: `${CORES[tag.cor]}20` }]}>
+                  <Text style={[styles.reportTagText, { color: CORES[tag.cor] }]}>{tag.nome}</Text>
+                </View>
+              ))}
             </View>
+            {item.zona ? <Text style={styles.reportZone}>{item.zona}</Text> : null}
             {item.comentario ? <Text style={styles.reportComment}>{item.comentario}</Text> : <Text style={styles.noComment}>Sem comentário</Text>}
-            <Text style={styles.reportDate}>{formatarData(item.atualizadaEm)}</Text>
+            <Text style={styles.reportDate}>{formatarData(item.criadaEm)}</Text>
           </View>
         )) : <Text style={styles.empty}>Ainda não há relatos recentes. Você pode ser a primeira pessoa a avaliar este local.</Text>}
       </ScrollView>
@@ -276,6 +354,8 @@ const styles = StyleSheet.create({
   locationButton: { backgroundColor: "#fee2e2", borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8 },
   locationButtonText: { color: "#8b0000", fontSize: 12, fontWeight: "700" },
   helper: { color: "#68717c", fontSize: 13, lineHeight: 19, marginBottom: 10 },
+  zoneLabel: { color: "#505963", fontSize: 12, fontWeight: "700", marginBottom: 5 },
+  zoneInput: { backgroundColor: "#fff", borderColor: "#dfe3e8", borderRadius: 10, borderWidth: 1, color: "#252a30", fontSize: 14, marginBottom: 10, minHeight: 42, paddingHorizontal: 12 },
   mapFrame: { borderRadius: 18, height: 250, overflow: "hidden" },
   map: { flex: 1 },
   summaryCard: { alignItems: "center", backgroundColor: "#fff", borderRadius: 14, flexDirection: "row", marginTop: 14, padding: 14 },
@@ -286,15 +366,16 @@ const styles = StyleSheet.create({
   counts: { flexDirection: "row", justifyContent: "space-around", paddingVertical: 12 },
   count: { fontSize: 12, fontWeight: "800" },
   error: { color: "#b42318", fontSize: 13, marginBottom: 8 },
+  colorTabs: { flexDirection: "row", gap: 6, marginVertical: 8 },
+  colorTab: { alignItems: "center", borderColor: "#dfe3e8", borderRadius: 10, borderWidth: 1, flex: 1, justifyContent: "center", minHeight: 42, paddingHorizontal: 4 },
+  colorTabText: { color: "#40464e", fontSize: 11, fontWeight: "700", textAlign: "center" },
+  colorTabTextSelected: { color: "#fff" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginVertical: 8 },
   chip: { backgroundColor: "#e9ebef", borderRadius: 18, paddingHorizontal: 13, paddingVertical: 9 },
-  chipSelected: { backgroundColor: "#8b0000" },
   chipText: { color: "#444b54", fontSize: 13, fontWeight: "600" },
   chipTextSelected: { color: "#fff" },
-  ratings: { flexDirection: "row", gap: 8, marginVertical: 8 },
-  ratingOption: { alignItems: "center", backgroundColor: "#fff", borderColor: "#e0e3e8", borderRadius: 12, borderWidth: 1.5, flex: 1, flexDirection: "row", justifyContent: "center", minHeight: 46 },
-  ratingDot: { borderRadius: 5, height: 10, marginRight: 6, width: 10 },
-  ratingText: { color: "#30363d", fontSize: 12, fontWeight: "700" },
+  tagNote: { color: "#68717c", fontSize: 11, lineHeight: 16, marginBottom: 8 },
+  selectedTag: { color: "#343a40", fontSize: 13, fontWeight: "700", marginBottom: 4 },
   input: { backgroundColor: "#fff", borderColor: "#dfe3e8", borderRadius: 12, borderWidth: 1, color: "#252a30", fontSize: 14, height: 96, marginTop: 8, padding: 12 },
   submit: { alignItems: "center", backgroundColor: "#c83232", borderRadius: 12, justifyContent: "center", marginTop: 12, minHeight: 48 },
   submitText: { color: "#fff", fontSize: 15, fontWeight: "800" },
@@ -302,9 +383,10 @@ const styles = StyleSheet.create({
   scoringNote: { color: "#737c86", fontSize: 11, lineHeight: 16, marginTop: 9 },
   reportsTitle: { marginTop: 24 },
   reportCard: { backgroundColor: "#fff", borderRadius: 14, marginTop: 9, padding: 14 },
-  reportTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  reportCategory: { color: "#30363d", fontSize: 14, fontWeight: "800" },
-  reportRating: { fontSize: 12, fontWeight: "800", textTransform: "capitalize" },
+  reportTags: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  reportTag: { borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5 },
+  reportTagText: { fontSize: 12, fontWeight: "800" },
+  reportZone: { color: "#68717c", fontSize: 12, marginTop: 6 },
   reportComment: { color: "#48515b", fontSize: 14, lineHeight: 20, marginTop: 8 },
   noComment: { color: "#808892", fontSize: 13, fontStyle: "italic", marginTop: 8 },
   reportDate: { color: "#8a929b", fontSize: 11, marginTop: 9 },

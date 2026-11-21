@@ -42,6 +42,7 @@ type Opcoes = {
   body?: unknown;
   autenticado?: boolean;
   timeoutMs?: number;
+  signal?: AbortSignal;
 };
 
 export async function api(caminho: string, opcoes: Opcoes = {}) {
@@ -55,6 +56,9 @@ export async function api(caminho: string, opcoes: Opcoes = {}) {
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const cancelar = () => controller.abort();
+  opcoes.signal?.addEventListener("abort", cancelar, { once: true });
+  if (opcoes.signal?.aborted) controller.abort();
 
   try {
     const resposta = await fetch(`${API_BASE_URL}${caminho}`, {
@@ -76,5 +80,6 @@ export async function api(caminho: string, opcoes: Opcoes = {}) {
     throw new ApiError(0, "Não foi possível conectar ao servidor. Tente novamente em instantes.");
   } finally {
     clearTimeout(timeout);
+    opcoes.signal?.removeEventListener("abort", cancelar);
   }
 }

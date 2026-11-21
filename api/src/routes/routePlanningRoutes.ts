@@ -5,10 +5,16 @@ import { autenticar, RequestAutenticado } from "../middlewares/auth";
 const router = Router();
 type Coord = { latitude: number; longitude: number };
 type Preferencias = { avoidYellow: boolean; avoidRed: boolean };
+const LIMITES_BAIXADA_SANTISTA = { sul: -24.7, norte: -23.5, oeste: -47.1, leste: -45.7 };
 
 function validCoord(value: any): value is Coord {
   return value && Number.isFinite(value.latitude) && value.latitude >= -90 && value.latitude <= 90
     && Number.isFinite(value.longitude) && value.longitude >= -180 && value.longitude <= 180;
+}
+
+function dentroDaBaixadaSantista(value: Coord) {
+  return value.latitude >= LIMITES_BAIXADA_SANTISTA.sul && value.latitude <= LIMITES_BAIXADA_SANTISTA.norte
+    && value.longitude >= LIMITES_BAIXADA_SANTISTA.oeste && value.longitude <= LIMITES_BAIXADA_SANTISTA.leste;
 }
 
 async function scoreGeometry(geometry: unknown, preferences: Preferencias) {
@@ -17,7 +23,9 @@ async function scoreGeometry(geometry: unknown, preferences: Preferencias) {
        SELECT ST_SetSRID(ST_GeomFromGeoJSON($1), 4326)::geography AS geom
      )
      SELECT DISTINCT c.id AS "commentId", c.zona, cat.id AS "tagId", cat.nome AS category,
-            cat.nivel AS level, c.data AS "reportedAt"
+            cat.nivel AS level, c.data AS "reportedAt",
+            ST_Y(c.localizacao::geometry) AS latitude,
+            ST_X(c.localizacao::geometry) AS longitude
      FROM route r
      JOIN comentarios c ON c.localizacao IS NOT NULL
        AND c.removido = FALSE
@@ -115,6 +123,9 @@ router.post("/rotas/calcular", async (req: Request, res: Response, next: NextFun
       || typeof avoidYellow !== "boolean" || typeof avoidRed !== "boolean") {
       return res.status(400).json({ mensagem: "Informe origem, destino, alternativas e preferências de segurança válidas." });
     }
+    if (!dentroDaBaixadaSantista(origin) || !dentroDaBaixadaSantista(destination)) {
+      return res.status(400).json({ mensagem: "O cálculo de rotas está disponível somente dentro da Baixada Santista." });
+    }
     const result = await calculate(origin, destination, alternatives, { avoidYellow, avoidRed });
     return res.json(result);
   } catch (error: any) {
@@ -123,6 +134,20 @@ router.post("/rotas/calcular", async (req: Request, res: Response, next: NextFun
     }
     return next(error);
   }
+});
+
+router.get("/rotas/salvas", autenticar, async (req: RequestAutenticado, res: Response, next: NextFunction) => {
+  try {
+    const saved = await pool.query(
+      `SELECT id, nome, origem, destino, disponivel_offline AS "disponivelOffline"
+       FROM rota
+       WHERE id_usuario = $1
+       ORDER BY id DESC
+       LIMIT 50`,
+      [req.usuario!.id],
+    );
+    return res.json(saved.rows);
+  } catch (error) { return next(error); }
 });
 
 router.post("/rotas/salvar", autenticar, async (req: RequestAutenticado, res: Response, next: NextFunction) => {

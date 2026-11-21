@@ -5,7 +5,8 @@ import {
   listarMeusComentarios,
   criarComentario,
   atualizarComentario,
-  deletarComentario
+  deletarComentario,
+  denunciarComentario,
 } from "../controllers/comentarioController";
 
 const router = Router();
@@ -15,5 +16,6 @@ router.get("/comentarios/meus", autenticar, listarMeusComentarios);
 router.post("/comentarios", autenticar, criarComentario);
 router.put("/comentarios/:id", autenticar, atualizarComentario);
 router.delete("/comentarios/:id", autenticar, deletarComentario);
+router.post("/comentarios/:id/denunciar", autenticar, denunciarComentario);
 
 export default router;

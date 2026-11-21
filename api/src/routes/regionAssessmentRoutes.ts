@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import { pool } from "../database/connection";
 import { autenticar, RequestAutenticado } from "../middlewares/auth";
 import { gerarNomeAutor } from "../services/nomeAutor";
+import { temLinguagemPreconceituosa } from "../services/filtroConteudo";
 
 const router = Router();
 // Células de aproximadamente 400 m, que cobrem em geral 4 a 8 quarteirões.
@@ -143,6 +144,9 @@ router.post("/avaliacoes-regiao", autenticar, async (req: RequestAutenticado, re
     || !tags.every((tag: unknown) => typeof tag === "string" && TAG_POR_ID.has(tag as typeof TAGS[number]["id"]))
     || (comentario != null && (typeof comentario !== "string" || comentario.trim().length > 1000))) {
     return res.status(400).json({ mensagem: "Informe a zona, pelo menos uma tag, coordenadas válidas e um comentário de até 1000 caracteres." });
+  }
+  if (typeof comentario === "string" && temLinguagemPreconceituosa(comentario)) {
+    return res.status(400).json({ mensagem: "Troque ou remova a expressão preconceituosa antes de publicar." });
   }
 
   const tagsUnicas = [...new Set(tags as string[])];

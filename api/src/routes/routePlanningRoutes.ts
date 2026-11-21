@@ -73,20 +73,32 @@ async function calculate(origin: Coord, destination: Coord, alternatives: number
     recommended: false,
   })));
   const hasAvoidPreferences = preferences.avoidYellow || preferences.avoidRed;
-  const available = routes.filter((item: any) => !item.risk.blocked)
-    .sort((a: any, b: any) => {
-      const score = (route: any) => route.durationSeconds + (hasAvoidPreferences ? route.risk.penalty * 60 : 0);
-      return score(a) - score(b);
-    });
-  if (available[0]) available[0].recommended = true;
+  const shortestDistance = Math.min(...routes.map((route: any) => route.distanceMeters));
+  const maxAllowedDistance = shortestDistance * 1.35;
+  const withinDetourLimit = routes.filter((route: any) => route.distanceMeters <= maxAllowedDistance);
+  const score = (route: any) => route.durationSeconds + (hasAvoidPreferences ? route.risk.penalty * 60 : 0);
+  const available = hasAvoidPreferences
+    ? withinDetourLimit.filter((route: any) => !route.risk.blocked)
+    : withinDetourLimit;
+  const ordered = [...available].sort((a: any, b: any) => score(a) - score(b));
+  // If every route that avoids the selected zones exceeds the detour cap,
+  // return the best option within 35% instead of leaving the user without a route.
+  const selectedRoute = ordered[0]
+    ?? [...withinDetourLimit].sort((a: any, b: any) => score(a) - score(b))[0]
+    ?? [...routes].sort((a: any, b: any) => a.distanceMeters - b.distanceMeters)[0];
+  const avoidanceFallback = Boolean(hasAvoidPreferences && selectedRoute?.risk.blocked);
+  if (selectedRoute) selectedRoute.recommended = true;
   return {
     provider: "OSRM",
     generatedAt: new Date().toISOString(),
-    routes,
-    recommendedRouteId: available[0]?.id ?? null,
-    warning: available.length
-      ? "A recomendação considera os comentários e as tags recentes próximos ao trajeto. Não garante segurança nem considera necessariamente o trânsito em tempo real."
-      : "As alternativas encontradas cruzam zonas que você escolheu evitar. Você pode escolher uma delas manualmente ou mudar as opções de segurança.",
+    // Do not offer an option that would add more than the requested 35% detour.
+    routes: withinDetourLimit,
+    recommendedRouteId: selectedRoute?.id ?? null,
+    avoidanceFallback,
+    detourLimitPercent: 35,
+    warning: avoidanceFallback
+      ? "Não encontramos uma rota que evite todas as zonas selecionadas dentro do limite de 35% de distância extra. Selecionamos a melhor opção dentro desse limite; ela pode passar por uma zona marcada. Confira os alertas antes de seguir."
+      : "A recomendação considera os comentários e as tags recentes próximos ao trajeto e limita desvios a 35% da rota mais curta. Não garante segurança nem considera necessariamente o trânsito em tempo real.",
   };
 }
 
@@ -127,15 +139,10 @@ router.post("/rotas/salvar", autenticar, async (req: RequestAutenticado, res: Re
     const nomeRota = typeof nome === "string" && nome.trim() ? nome.trim().slice(0, 160) : `${origem.trim()} → ${destino.trim()}`.slice(0, 160);
     const saved = await pool.query(
       `INSERT INTO rota (
-         nome, origem, destino, disponivel_offline, id_usuario,
-         origem_latitude, origem_longitude, destino_latitude, destino_longitude,
-         geometria, distancia_metros, duracao_segundos, risco, evitar_amarelas, evitar_vermelhas
-       ) VALUES ($1,$2,$3,FALSE,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12::jsonb,$13,$14)
-       RETURNING id, nome, origem, destino, disponivel_offline AS "disponivelOffline", criado_em AS "criadoEm"`,
-      [nomeRota, origem.trim(), destino.trim(), req.usuario!.id,
-        origin.latitude, origin.longitude, destination.latitude, destination.longitude,
-        JSON.stringify(geometry), Math.round(route.distanceMeters), Math.round(route.durationSeconds),
-        JSON.stringify(route.risk ?? {}), avoidYellow, avoidRed],
+         nome, origem, destino, disponivel_offline, id_usuario
+       ) VALUES ($1,$2,$3,FALSE,$4)
+       RETURNING id, nome, origem, destino, disponivel_offline AS "disponivelOffline"`,
+      [nomeRota, origem.trim(), destino.trim(), req.usuario!.id],
     );
     return res.status(201).json({ rota: saved.rows[0], mensagem: "Rota salva na sua conta." });
   } catch (error) { return next(error); }
@@ -146,8 +153,7 @@ router.post("/rotas/:id/baixar", autenticar, async (req: RequestAutenticado, res
     const saved = await pool.query(
       `UPDATE rota SET disponivel_offline = TRUE
        WHERE id = $1 AND id_usuario = $2
-       RETURNING id, nome, origem, destino, geometria, distancia_metros AS "distanciaMetros",
-                 duracao_segundos AS "duracaoSegundos", disponivel_offline AS "disponivelOffline"`,
+       RETURNING id, nome, origem, destino, disponivel_offline AS "disponivelOffline"`,
       [req.params.id, req.usuario!.id],
     );
     if (!saved.rowCount) return res.status(404).json({ mensagem: "Salve a rota na sua conta antes de baixá-la." });

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Keyboard, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../services/api";
 
-type Local = { id: number; nome: string; latitude: number; longitude: number };
+type Local = { id: number | string; nome: string; latitude: number; longitude: number };
 const imagens = {
   busca: require("../../assets/images/Search.png"),
   voltar: require("../../assets/images/Return.png"),

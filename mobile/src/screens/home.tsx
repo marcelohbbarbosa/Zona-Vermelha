@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Location from "expo-location";
-import MapView, { Circle, Marker, type Region } from "react-native-maps";
+import MapView, { Marker, Polygon, type Region } from "react-native-maps";
 import { api } from "../services/api";
 
 type Ponto = { latitude: number; longitude: number };
@@ -15,6 +15,20 @@ const REGIAO_INICIAL: Region = {
   longitudeDelta: 0.09,
 };
 const CORES: Record<Status, string> = { verde: "#2f9e44", amarelo: "#d69e00", vermelho: "#d94848", sem_dados: "#64748b" };
+
+function coordenadasDaZona(item: ResumoMapa) {
+  const tamanho = 0.004;
+  const sul = item.celulaLat * tamanho;
+  const oeste = item.celulaLng * tamanho;
+  const norte = sul + tamanho;
+  const leste = oeste + tamanho;
+  return [
+    { latitude: sul, longitude: oeste },
+    { latitude: sul, longitude: leste },
+    { latitude: norte, longitude: leste },
+    { latitude: norte, longitude: oeste },
+  ];
+}
 
 export default function Home({ navigation }: any) {
   const mapaRef = useRef<MapView>(null);
@@ -84,7 +98,7 @@ export default function Home({ navigation }: any) {
         style={styles.map}
       >
         {resumos.flatMap((item) => [
-          <Circle key={`area-${item.latitude}:${item.longitude}`} center={item} radius={140} fillColor={`${CORES[item.status]}22`} strokeColor={`${CORES[item.status]}88`} strokeWidth={1} />,
+          <Polygon key={`area-${item.latitude}:${item.longitude}`} coordinates={coordenadasDaZona(item)} fillColor={`${CORES[item.status]}22`} strokeColor={`${CORES[item.status]}88`} strokeWidth={1} />,
           <Marker
             key={`pino-${item.latitude}:${item.longitude}`}
             coordinate={item}

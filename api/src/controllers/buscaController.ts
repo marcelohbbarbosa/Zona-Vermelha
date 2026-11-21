@@ -38,9 +38,9 @@ export async function buscarLocais(req: Request, res: Response) {
   url.search = new URLSearchParams({
     q: consulta,
     limit: "8",
-    lat: "-23.96",
-    lon: "-46.33",
-    bbox: "-46.8,-24.2,-45.7,-23.7",
+    lat: "-24.05",
+    lon: "-46.5",
+    bbox: "-47.1,-24.7,-45.7,-23.5",
   }).toString();
 
   let resposta: globalThis.Response;

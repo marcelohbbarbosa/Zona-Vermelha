@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import * as Location from "expo-location";
+import { File, Paths } from "expo-file-system";
 
 import MapView, {
   Marker,
@@ -31,9 +32,11 @@ type Coordenadas = {
 };
 
 type Local = Coordenadas & {
-  id: number;
+  id: number | string;
   nome: string;
 };
+
+type DestinoRecente = Coordenadas & { nome: string };
 
 type AlternativaRota = {
   id: string;
@@ -41,7 +44,7 @@ type AlternativaRota = {
   durationSeconds: number;
   geometry: { coordinates: [number, number][] };
   recommended: boolean;
-  risk: { riskScore?: number; blocked?: boolean; penalty?: number; risks?: Array<{ category: string; severity: string }> };
+  risk: { riskScore?: number; blocked?: boolean; penalty?: number; yellowCount?: number; redCount?: number; risks?: Array<{ category: string; level: number; zona: string }> };
 };
 
 type ResultadoRota = {
@@ -52,15 +55,6 @@ type ResultadoRota = {
   aviso?: string;
   risco?: AlternativaRota["risk"];
 };
-
-const sugestoesRecentes = [
-  "Rua Almeida, 523",
-  "Rua Anchieta, 212",
-  "Rua Anchieta, 215",
-  "Rua Augusta",
-  "Rua Afonso Bovero",
-  "Rua Argentina",
-];
 
 const imagens = {
   busca: require("../../assets/images/Search.png"),
@@ -100,6 +94,8 @@ export default function Rotas({ navigation, route }: any) {
 
   const [resultadosOrigem, setResultadosOrigem] = useState<Local[]>([]);
   const [resultadosDestino, setResultadosDestino] = useState<Local[]>([]);
+  const [destinosRecentes, setDestinosRecentes] = useState<DestinoRecente[]>([]);
+  const [recentesCarregados, setRecentesCarregados] = useState(false);
   const [campoAtivo, setCampoAtivo] = useState<"origem" | "destino" | null>(
     null,
   );
@@ -107,11 +103,47 @@ export default function Rotas({ navigation, route }: any) {
   const [resultadoRota, setResultadoRota] =
     useState<ResultadoRota | null>(null);
   const [alternativasRota, setAlternativasRota] = useState<AlternativaRota[]>([]);
-  const [solicitacaoRotaId, setSolicitacaoRotaId] = useState<string | number | null>(null);
   const [carregandoRota, setCarregandoRota] = useState(false);
+  const [salvandoRota, setSalvandoRota] = useState(false);
+  const [baixandoRota, setBaixandoRota] = useState(false);
+  const [rotaSalvaId, setRotaSalvaId] = useState<number | null>(null);
+  const [rotaBaixada, setRotaBaixada] = useState(false);
+  const [evitarAmarelas, setEvitarAmarelas] = useState(false);
+  const [evitarVermelhas, setEvitarVermelhas] = useState(false);
   const [localizando, setLocalizando] = useState(false);
   const [erroBusca, setErroBusca] = useState("");
+  const [avisoRota, setAvisoRota] = useState("");
   const solicitouLocalizacaoInicial = useRef(false);
+
+  useEffect(() => {
+    let cancelado = false;
+    const arquivo = new File(Paths.document, "destinos-recentes.json");
+    void (async () => {
+      try {
+        if (!arquivo.exists) return;
+        const dados = JSON.parse(await arquivo.text());
+        if (!cancelado && Array.isArray(dados)) {
+          setDestinosRecentes(dados.filter((item: any) =>
+            typeof item?.nome === "string" && Number.isFinite(item.latitude) && Number.isFinite(item.longitude),
+          ).slice(0, 8));
+        }
+      } catch {
+        // Um arquivo local inválido não deve impedir o planejamento de rotas.
+      } finally {
+        if (!cancelado) setRecentesCarregados(true);
+      }
+    })();
+    return () => { cancelado = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!recentesCarregados) return;
+    void new File(Paths.document, "destinos-recentes.json")
+      .write(JSON.stringify(destinosRecentes))
+      .catch(() => {
+        // O histórico continua disponível durante esta sessão mesmo se não puder ser gravado.
+      });
+  }, [destinosRecentes, recentesCarregados]);
 
   useEffect(() => {
     if (!destinoInicial) return;
@@ -200,8 +232,10 @@ export default function Rotas({ navigation, route }: any) {
   const invalidarRota = () => {
     setResultadoRota(null);
     setAlternativasRota([]);
-    setSolicitacaoRotaId(null);
+    setRotaSalvaId(null);
+    setRotaBaixada(false);
     setErroBusca("");
+    setAvisoRota("");
   };
 
   const selecionarAlternativa = (alternativa: AlternativaRota, aviso?: string) => {
@@ -214,28 +248,12 @@ export default function Rotas({ navigation, route }: any) {
       aviso,
       risco: alternativa.risk,
     });
+    setRotaSalvaId(null);
+    setRotaBaixada(false);
     setTimeout(() => mapaRef.current?.fitToCoordinates(coordenadas, {
       edgePadding: { top: 55, right: 45, bottom: 55, left: 45 },
       animated: true,
     }), 250);
-  };
-
-  const recalcularRota = async () => {
-    if (!solicitacaoRotaId) return;
-    setCarregandoRota(true);
-    setErroBusca("");
-    try {
-      const dados = await api(`/rotas/${solicitacaoRotaId}/recalcular`, { method: "POST" }) as any;
-      setSolicitacaoRotaId(dados.requestId);
-      setAlternativasRota(dados.routes ?? []);
-      const recomendada = (dados.routes ?? []).find((item: AlternativaRota) => item.id === dados.recommendedRouteId) ?? dados.routes?.[0];
-      if (!recomendada) throw new Error(dados.warning || "Não foi possível recalcular a rota.");
-      selecionarAlternativa(recomendada, dados.warning);
-    } catch (erro: any) {
-      setErroBusca(erro.message || "Não foi possível recalcular a rota.");
-    } finally {
-      setCarregandoRota(false);
-    }
   };
 
   const usarLocalizacao = async () => {
@@ -326,6 +344,8 @@ export default function Rotas({ navigation, route }: any) {
     setCarregandoRota(true);
     setErroBusca("");
     setResultadoRota(null);
+    setRotaSalvaId(null);
+    setRotaBaixada(false);
 
     try {
       const dados = await api("/rotas/calcular", {
@@ -334,22 +354,28 @@ export default function Rotas({ navigation, route }: any) {
           origin: origemCoordenadas,
           destination: destinoCoordenadas,
           alternatives: 3,
+          avoidYellow: evitarAmarelas,
+          avoidRed: evitarVermelhas,
         },
       }) as any;
 
-      const rotaCalculada =
-        dados.routes?.find((item: any) => item.id === dados.recommendedRouteId) ??
-        dados.routes?.[0];
-
-      if (!rotaCalculada?.geometry?.coordinates?.length) {
-        throw new Error(
-          dados.warning || "Não foi possível encontrar uma rota entre esses endereços.",
-        );
-      }
-
-      setSolicitacaoRotaId(dados.requestId);
       setAlternativasRota(dados.routes ?? []);
-      selecionarAlternativa(rotaCalculada, dados.warning);
+      setAvisoRota(dados.warning ?? "");
+      const rotaCalculada = (dados.routes ?? []).find((item: AlternativaRota) => item.id === dados.recommendedRouteId);
+      if (rotaCalculada?.geometry?.coordinates?.length) {
+        const destinoRecente = { nome: destino.trim(), ...destinoCoordenadas };
+        setDestinosRecentes((atuais) => [
+          destinoRecente,
+          ...atuais.filter((item) =>
+            item.nome.trim().toLocaleLowerCase() !== destinoRecente.nome.toLocaleLowerCase()
+            && (Math.abs(item.latitude - destinoRecente.latitude) > 0.0001
+              || Math.abs(item.longitude - destinoRecente.longitude) > 0.0001),
+          ),
+        ].slice(0, 8));
+        selecionarAlternativa(rotaCalculada, dados.warning);
+      } else {
+        setErroBusca(dados.warning || "Não foi possível encontrar uma rota entre esses endereços.");
+      }
 
       setCampoAtivo(null);
       setResultadosOrigem([]);
@@ -362,6 +388,70 @@ export default function Rotas({ navigation, route }: any) {
       );
     } finally {
       setCarregandoRota(false);
+    }
+  };
+
+  const salvarRota = async () => {
+    if (!resultadoRota || !origemCoordenadas || !destinoCoordenadas) return;
+    setSalvandoRota(true);
+    try {
+      const dados = await api("/rotas/salvar", {
+        method: "POST",
+        autenticado: true,
+        body: {
+          nome: `${origem} → ${destino}`,
+          origem,
+          destino,
+          origin: origemCoordenadas,
+          destination: destinoCoordenadas,
+          avoidYellow: evitarAmarelas,
+          avoidRed: evitarVermelhas,
+          route: {
+            geometry: {
+              type: "LineString",
+              coordinates: resultadoRota.coordenadas.map((ponto) => [ponto.longitude, ponto.latitude]),
+            },
+            distanceMeters: resultadoRota.distancia,
+            durationSeconds: resultadoRota.duracao,
+            risk: resultadoRota.risco,
+          },
+        },
+      }) as { rota: { id: number } };
+      setRotaSalvaId(dados.rota.id);
+      setRotaBaixada(false);
+      Alert.alert("Rota salva", "Agora você pode baixá-la para usar offline.");
+    } catch (erro: any) {
+      Alert.alert("Não foi possível salvar", erro.message || "Entre na sua conta e tente novamente.");
+    } finally {
+      setSalvandoRota(false);
+    }
+  };
+
+  const baixarRota = async () => {
+    if (!rotaSalvaId || !resultadoRota) {
+      Alert.alert("Salve a rota primeiro", "O download só fica disponível depois que a rota for salva.");
+      return;
+    }
+    setBaixandoRota(true);
+    try {
+      const arquivo = new File(Paths.document, `rota-${rotaSalvaId}.json`);
+      await arquivo.write(JSON.stringify({
+        id: rotaSalvaId,
+        nome: `${origem} → ${destino}`,
+        origem,
+        destino,
+        origin: origemCoordenadas,
+        destination: destinoCoordenadas,
+        route: resultadoRota,
+        baixadaEm: new Date().toISOString(),
+      }));
+      await api(`/rotas/${rotaSalvaId}/baixar`, { method: "POST", autenticado: true });
+      setRotaBaixada(true);
+      Alert.alert("Rota baixada", "Ela foi armazenada no dispositivo para consulta offline.");
+    } catch (erro: any) {
+      Alert.alert("Não foi possível baixar", erro.message || "Tente novamente quando estiver conectado.");
+    } finally {
+      setBaixandoRota(false);
     }
   };
 
@@ -467,6 +557,38 @@ export default function Rotas({ navigation, route }: any) {
               </Pressable>
             ))}
 
+          <View style={styles.preferenciasSeguranca}>
+            <Text style={styles.rotuloPreferencias}>Preferências para o trajeto</Text>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: evitarAmarelas }}
+              onPress={() => {
+                setEvitarAmarelas((valor) => !valor);
+                invalidarRota();
+              }}
+              style={styles.opcaoPreferencia}
+            >
+              <View style={[styles.checkbox, evitarAmarelas && styles.checkboxSelecionado]}>
+                {evitarAmarelas ? <Text style={styles.checkmark}>✓</Text> : null}
+              </View>
+              <Text style={styles.textoPreferencia}>Evitar zonas amarelas (alerta)</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: evitarVermelhas }}
+              onPress={() => {
+                setEvitarVermelhas((valor) => !valor);
+                invalidarRota();
+              }}
+              style={styles.opcaoPreferencia}
+            >
+              <View style={[styles.checkbox, evitarVermelhas && styles.checkboxSelecionado]}>
+                {evitarVermelhas ? <Text style={styles.checkmark}>✓</Text> : null}
+              </View>
+              <Text style={styles.textoPreferencia}>Evitar zonas vermelhas (risco)</Text>
+            </Pressable>
+          </View>
+
           <Pressable
             accessibilityRole="button"
             disabled={carregandoRota}
@@ -488,42 +610,38 @@ export default function Rotas({ navigation, route }: any) {
           <Text style={styles.erro}>{erroBusca}</Text>
         ) : null}
 
+        {alternativasRota.length ? (
+          <View style={styles.resumo}>
+            <Text style={styles.tituloResumo}>Alternativas de rota</Text>
+            {alternativasRota.map((alternativa, index) => (
+              <Pressable
+                key={alternativa.id}
+                onPress={() => selecionarAlternativa(alternativa, avisoRota)}
+                style={[
+                  styles.alternativa,
+                  resultadoRota?.id === alternativa.id && styles.alternativaSelecionada,
+                  alternativa.risk?.blocked && styles.alternativaEvitada,
+                ]}
+              >
+                <Text style={styles.dadosRota}>
+                  {alternativa.recommended ? "Recomendada" : `Alternativa ${index + 1}`}
+                  {alternativa.risk?.blocked ? " · cruza zona que você escolheu evitar" : ""}
+                </Text>
+                <Text style={styles.aviso}>
+                  {(alternativa.distanceMeters / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km · {Math.max(1, Math.round(alternativa.durationSeconds / 60))} min · risco {alternativa.risk?.riskScore ?? 0}/100
+                </Text>
+                <Text style={styles.aviso}>
+                  {alternativa.risk?.yellowCount ?? 0} ocorrência(s) amarela(s) · {alternativa.risk?.redCount ?? 0} vermelha(s)
+                </Text>
+              </Pressable>
+            ))}
+            {!resultadoRota ? <Text style={styles.aviso}>{avisoRota}</Text> : null}
+          </View>
+        ) : null}
+
         {resultadoRota ? (
           <View style={styles.resumo}>
-            <Text style={styles.tituloResumo}>Rota calculada</Text>
-            {alternativasRota.length > 1 ? (
-              <View style={{ gap: 8, marginTop: 10 }}>
-                <Text style={styles.dadosRota}>Alternativas disponíveis</Text>
-                {alternativasRota.map((alternativa, index) => (
-                  <Pressable
-                    key={alternativa.id}
-                    onPress={() => selecionarAlternativa(alternativa, resultadoRota.aviso)}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: resultadoRota.id === alternativa.id ? "#8b0000" : "#e5e7eb",
-                      borderRadius: 10,
-                      padding: 10,
-                      backgroundColor: resultadoRota.id === alternativa.id ? "#fff1f2" : "#ffffff",
-                    }}
-                  >
-                    <Text style={styles.dadosRota}>
-                      {alternativa.recommended ? "Recomendada" : `Alternativa ${index + 1}`}
-                      {alternativa.risk?.blocked ? " • bloqueio identificado" : ""}
-                    </Text>
-                    <Text style={styles.aviso}>
-                      {(alternativa.distanceMeters / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km • {Math.max(1, Math.round(alternativa.durationSeconds / 60))} min • risco {alternativa.risk?.riskScore ?? 0}/100
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-            <Pressable
-              onPress={recalcularRota}
-              disabled={carregandoRota || !solicitacaoRotaId}
-              style={[styles.botaoCriar, { marginTop: 12 }, carregandoRota && styles.botaoDesativado]}
-            >
-              <Text style={styles.textoBotaoCriar}>Recalcular com dados atuais</Text>
-            </Pressable>
+            <Text style={styles.tituloResumo}>Rota selecionada</Text>
             <Text style={styles.dadosRota}>
               Distância:{" "}
               {(resultadoRota.distancia / 1000).toLocaleString("pt-BR", {
@@ -537,12 +655,27 @@ export default function Rotas({ navigation, route }: any) {
             </Text>
             {resultadoRota.risco ? (
               <Text style={styles.dadosRota}>
-                Risco cadastrado: {resultadoRota.risco.blocked ? "bloqueio identificado" : `${resultadoRota.risco.riskScore ?? 0}/100`}
+                Risco das avaliações próximas: {resultadoRota.risco.riskScore ?? 0}/100
               </Text>
+            ) : null}
+            {resultadoRota.risco?.blocked ? (
+              <Text style={styles.avisoRisco}>Esta alternativa cruza uma zona marcada para evitar. Você a selecionou manualmente.</Text>
             ) : null}
             <Text style={styles.aviso}>
               {resultadoRota.aviso || "Estimativa para deslocamento de carro. Não é garantia de segurança nem considera necessariamente o trânsito em tempo real."}
             </Text>
+            {!rotaSalvaId ? (
+              <Pressable disabled={salvandoRota} onPress={() => void salvarRota()} style={[styles.botaoCriar, salvandoRota && styles.botaoDesativado]}>
+                {salvandoRota ? <ActivityIndicator color="#fff" /> : <Text style={styles.textoBotaoCriar}>Salvar rota</Text>}
+              </Pressable>
+            ) : (
+              <View>
+                <Text style={styles.salvoInfo}>Rota salva na sua conta.</Text>
+                <Pressable disabled={baixandoRota || rotaBaixada} onPress={() => void baixarRota()} style={[styles.botaoBaixar, (baixandoRota || rotaBaixada) && styles.botaoDesativado]}>
+                  {baixandoRota ? <ActivityIndicator color="#fff" /> : <Text style={styles.textoBotaoCriar}>{rotaBaixada ? "Rota baixada para uso offline" : "Baixar rota salva"}</Text>}
+                </Pressable>
+              </View>
+            )}
           </View>
         ) : null}
 
@@ -572,14 +705,15 @@ export default function Rotas({ navigation, route }: any) {
 
         <Text style={styles.tituloLista}>Destinos recentes</Text>
         <View style={styles.lista}>
-          {sugestoesRecentes.map((local) => (
+          {destinosRecentes.map((local) => (
             <Pressable
               accessibilityRole="button"
-              key={local}
+              key={`${local.nome}-${local.latitude}-${local.longitude}`}
               onPress={() => {
-                setDestino(local);
-                setDestinoCoordenadas(null);
-                setCampoAtivo("destino");
+                setDestino(local.nome);
+                setDestinoCoordenadas({ latitude: local.latitude, longitude: local.longitude });
+                setResultadosDestino([]);
+                setCampoAtivo(null);
                 invalidarRota();
               }}
               style={styles.itemLocal}
@@ -588,10 +722,13 @@ export default function Rotas({ navigation, route }: any) {
                 <Image source={imagens.recente} style={styles.iconeItem} />
               </View>
               <Text numberOfLines={1} style={styles.nomeLocal}>
-                {local}
+                {local.nome}
               </Text>
             </Pressable>
           ))}
+          {!destinosRecentes.length && recentesCarregados ? (
+            <Text style={styles.vazioRecentes}>Os destinos que você usar em uma rota aparecerão aqui.</Text>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -658,6 +795,13 @@ const styles = StyleSheet.create({
   },
   botaoLocalizacao: { alignSelf: "flex-start", paddingVertical: 5 },
   textoLocalizacao: { color: "#8b0000", fontSize: 14, fontWeight: "700" },
+  preferenciasSeguranca: { backgroundColor: "#fff", borderColor: "#e5e7eb", borderRadius: 12, borderWidth: 1, gap: 10, marginTop: 4, padding: 12 },
+  rotuloPreferencias: { color: "#1f2937", fontSize: 14, fontWeight: "800", marginBottom: 2 },
+  opcaoPreferencia: { alignItems: "center", flexDirection: "row", gap: 9, minHeight: 30 },
+  checkbox: { alignItems: "center", borderColor: "#9ca3af", borderRadius: 5, borderWidth: 1.5, height: 21, justifyContent: "center", width: 21 },
+  checkboxSelecionado: { backgroundColor: "#8b0000", borderColor: "#8b0000" },
+  checkmark: { color: "#fff", fontSize: 14, fontWeight: "800", lineHeight: 17 },
+  textoPreferencia: { color: "#374151", flex: 1, fontSize: 13 },
   botaoCriar: {
     alignItems: "center",
     backgroundColor: "#8b0000",
@@ -692,6 +836,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   tituloResumo: { color: "#8b0000", fontSize: 17, fontWeight: "800" },
+  alternativa: { backgroundColor: "#fff", borderColor: "#e5e7eb", borderRadius: 10, borderWidth: 1, marginTop: 10, padding: 10 },
+  alternativaSelecionada: { backgroundColor: "#fff1f2", borderColor: "#8b0000", borderWidth: 2 },
+  alternativaEvitada: { borderColor: "#d94848" },
   dadosRota: {
     color: "#1f2937",
     fontSize: 15,
@@ -699,6 +846,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   aviso: { color: "#6b7280", fontSize: 12, lineHeight: 17, marginTop: 10 },
+  avisoRisco: { color: "#b42318", fontSize: 13, fontWeight: "700", lineHeight: 18, marginTop: 8 },
+  salvoInfo: { color: "#24823b", fontSize: 13, fontWeight: "700", marginTop: 12 },
+  botaoBaixar: { alignItems: "center", backgroundColor: "#31445b", borderRadius: 26, elevation: 4, justifyContent: "center", marginTop: 9, minHeight: 50 },
  mapaContainer: {
   borderRadius: 16,
   height: 300,
@@ -723,6 +873,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#e5e7eb",
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  vazioRecentes: { color: "#6b7280", fontSize: 14, padding: 18 },
   itemLocal: {
     alignItems: "center",
     borderBottomColor: "#e5e7eb",

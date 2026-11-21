@@ -1,9 +1,9 @@
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
-// Expo substitutes EXPO_PUBLIC_API_URL at build time. Use a public HTTPS
-// domain for installed clients.
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+// A variável local do Expo Go pode apontar para o PC. Sem ela, use o Render
+// automaticamente nos builds compartilhados/publicados.
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://zona-vermelha.onrender.com";
 const TOKEN_KEY = "token";
 
 export class ApiError extends Error {

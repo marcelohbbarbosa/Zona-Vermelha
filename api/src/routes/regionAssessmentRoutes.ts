@@ -78,7 +78,7 @@ router.get("/avaliacoes-mapa", async (req: Request, res: Response, next: NextFun
     const grupos = new Map<string, { celulaLat: number; celulaLng: number; niveis: number[] }>();
     for (const row of resultado.rows) {
       const key = `${row.celulaLat}:${row.celulaLng}`;
-      const grupo = grupos.get(key) ?? { celulaLat: row.celulaLat, celulaLng: row.celulaLng, niveis: [] };
+      const grupo = grupos.get(key) ?? { celulaLat: row.celulaLat, celulaLng: row.celulaLng, niveis: [] as number[] };
       grupo.niveis.push(Number(row.nivel));
       grupos.set(key, grupo);
     }

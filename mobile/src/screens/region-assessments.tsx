@@ -29,6 +29,7 @@ type Categoria =
   | "furto" | "ameaca_agressao" | "assedio" | "comercio_drogas";
 type Avaliacao = {
   id: number;
+  idUsuario: number;
   zona: string | null;
   tags: { id: number; nome: string; nivel: number; cor: "verde" | "amarelo" | "vermelho" }[];
   comentario: string | null;
@@ -136,6 +137,12 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
   const [denunciaAlvo, setDenunciaAlvo] = useState<Avaliacao | null>(null);
   const [motivoDenuncia, setMotivoDenuncia] = useState<MotivoDenuncia | null>(null);
   const [enviandoDenuncia, setEnviandoDenuncia] = useState(false);
+  const [usuarioId, setUsuarioId] = useState<number | null>(null);
+  const [edicaoAlvo, setEdicaoAlvo] = useState<Avaliacao | null>(null);
+  const [comentarioEdicao, setComentarioEdicao] = useState("");
+  const [zonaEdicao, setZonaEdicao] = useState("");
+  const [tagsEdicao, setTagsEdicao] = useState<Categoria[]>([]);
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const comentarioPreconceituoso = temLinguagemPreconceituosa(comentario);
 
   const localizar = useCallback(async () => {
@@ -156,6 +163,12 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
   useEffect(() => {
     if (!coordenadasIniciais) void localizar();
   }, [coordenadasIniciais, localizar]);
+
+  useEffect(() => {
+    api("/auth/perfil", { autenticado: true })
+      .then((perfil: any) => setUsuarioId(Number(perfil.id)))
+      .catch(() => setUsuarioId(null));
+  }, []);
 
   const carregarResumo = useCallback(async (ponto: Coordenadas) => {
     setCarregando(true);
@@ -248,7 +261,7 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
   };
 
   const enviarDenuncia = async () => {
-    if (!denunciaAlvo || !motivoDenuncia) return;
+    if (!denunciaAlvo || !motivoDenuncia || denunciaAlvo.idUsuario === usuarioId) return;
     setEnviandoDenuncia(true);
     try {
       const resultado = await api(`/comentarios/${denunciaAlvo.id}/denunciar`, {
@@ -273,6 +286,43 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
     } finally {
       setEnviandoDenuncia(false);
     }
+  };
+
+  const iniciarEdicao = (item: Avaliacao) => {
+    const opcoes = TAGS.verde.concat(TAGS.amarelo, TAGS.vermelho);
+    setEdicaoAlvo(item);
+    setComentarioEdicao(item.comentario ?? "");
+    setZonaEdicao(item.zona ?? "");
+    setTagsEdicao(opcoes.filter((opcao) => item.tags.some((tag) => tag.nome.toLocaleLowerCase("pt-BR") === opcao.titulo.toLocaleLowerCase("pt-BR"))).map((opcao) => opcao.id));
+  };
+
+  const salvarEdicao = async () => {
+    if (!edicaoAlvo || !tagsEdicao.length || comentarioEdicao && temLinguagemPreconceituosa(comentarioEdicao)) return;
+    setSalvandoEdicao(true);
+    try {
+      await api(`/avaliacoes-regiao/${edicaoAlvo.id}`, {
+        method: "PUT",
+        autenticado: true,
+        body: { zona: zonaEdicao, tags: tagsEdicao, comentario: comentarioEdicao.trim() || null },
+      });
+      setEdicaoAlvo(null);
+      if (local) await carregarResumo(local);
+      Alert.alert("Avaliação atualizada", "Suas tags e seu comentário foram atualizados.");
+    } catch (e: any) {
+      Alert.alert("Não foi possível editar", e.message || "Tente novamente em instantes.");
+    } finally { setSalvandoEdicao(false); }
+  };
+
+  const apagarAvaliacao = (item: Avaliacao) => {
+    Alert.alert("Apagar sua avaliação?", "Ela será removida da região e não poderá ser recuperada.", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Apagar", style: "destructive", onPress: () => void (async () => {
+        try {
+          await api(`/avaliacoes-regiao/${item.id}`, { method: "DELETE", autenticado: true });
+          if (local) await carregarResumo(local);
+        } catch (e: any) { Alert.alert("Não foi possível apagar", e.message || "Tente novamente."); }
+      })() },
+    ]);
   };
 
   return (
@@ -348,7 +398,7 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
         {erro ? <Text style={styles.error}>{erro}</Text> : null}
 
         <Text style={styles.sectionTitle}>Tags da avaliação</Text>
-        <Text style={styles.helper}>Escolha uma tag. A cor define como ela afeta a avaliação desta zona.</Text>
+        <Text style={styles.helper}>Escolha quantas tags quiser, inclusive de cores diferentes. A cor define como cada uma afeta esta zona.</Text>
         <View style={styles.colorTabs}>
           {([
             ["verde", "Verde · bom"],
@@ -418,9 +468,16 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
             {item.zona ? <Text style={styles.reportZone}>{item.zona}</Text> : null}
             {item.comentario ? <Text style={styles.reportComment}>{item.comentario}</Text> : <Text style={styles.noComment}>Sem comentário</Text>}
             <Text style={styles.reportDate}>{formatarData(item.criadaEm)}</Text>
-            <Pressable accessibilityRole="button" onPress={() => { setDenunciaAlvo(item); setMotivoDenuncia(null); }} style={styles.reportButton}>
-              <Text style={styles.reportButtonText}>Denunciar comentário</Text>
-            </Pressable>
+            {usuarioId === item.idUsuario ? (
+              <View style={styles.ownerActions}>
+                <Pressable accessibilityRole="button" onPress={() => iniciarEdicao(item)} style={styles.ownerButton}><Text style={styles.ownerButtonText}>Editar minha avaliação</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => apagarAvaliacao(item)} style={[styles.ownerButton, styles.deleteButton]}><Text style={[styles.ownerButtonText, styles.deleteButtonText]}>Apagar</Text></Pressable>
+              </View>
+            ) : (
+              <Pressable accessibilityRole="button" onPress={() => { setDenunciaAlvo(item); setMotivoDenuncia(null); }} style={styles.reportButton}>
+                <Text style={styles.reportButtonText}>Denunciar comentário</Text>
+              </Pressable>
+            )}
           </View>
         )) : <Text style={styles.empty}>Ainda não há relatos recentes. Você pode ser a primeira pessoa a avaliar este local.</Text>}
       </ScrollView>
@@ -442,6 +499,35 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
               <Pressable disabled={!motivoDenuncia || enviandoDenuncia} onPress={() => void enviarDenuncia()} style={[styles.modalSubmit, (!motivoDenuncia || enviandoDenuncia) && styles.disabled]}>
                 {enviandoDenuncia ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSubmitText}>Enviar denúncia</Text>}
               </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={Boolean(edicaoAlvo)} transparent animationType="slide" onRequestClose={() => setEdicaoAlvo(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.editModalCard}>
+            <Text style={styles.modalTitle}>Editar sua avaliação</Text>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <Text style={styles.zoneLabel}>Área</Text>
+              <TextInput maxLength={200} onChangeText={setZonaEdicao} style={styles.zoneInput} value={zonaEdicao} />
+              <Text style={styles.zoneLabel}>Tags (selecione várias, inclusive de cores diferentes)</Text>
+              {(["verde", "amarelo", "vermelho"] as const).map((cor) => (
+                <View key={cor}>
+                  <Text style={[styles.editColorLabel, { color: CORES[cor] }]}>{cor === "verde" ? "Verde · bom" : cor === "amarelo" ? "Amarelo · alerta" : "Vermelho · risco"}</Text>
+                  <View style={styles.chips}>
+                    {TAGS[cor].map((tag) => {
+                      const selecionada = tagsEdicao.includes(tag.id);
+                      return <Pressable key={tag.id} onPress={() => setTagsEdicao((atuais) => selecionada ? atuais.filter((id) => id !== tag.id) : [...atuais, tag.id])} style={[styles.chip, selecionada && { backgroundColor: CORES[cor], borderColor: CORES[cor] }]}><Text style={[styles.chipText, selecionada && styles.chipTextSelected]}>{tag.titulo}</Text></Pressable>;
+                    })}
+                  </View>
+                </View>
+              ))}
+              <TextInput maxLength={1000} multiline onChangeText={setComentarioEdicao} placeholder="Comentário (opcional)" placeholderTextColor="#77808c" style={styles.input} textAlignVertical="top" value={comentarioEdicao} />
+              {temLinguagemPreconceituosa(comentarioEdicao) ? <Text style={styles.erroConteudo}>Troque ou remova a expressão preconceituosa para salvar.</Text> : null}
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <Pressable disabled={salvandoEdicao} onPress={() => setEdicaoAlvo(null)} style={styles.modalCancel}><Text style={styles.modalCancelText}>Cancelar</Text></Pressable>
+              <Pressable disabled={!tagsEdicao.length || salvandoEdicao || temLinguagemPreconceituosa(comentarioEdicao)} onPress={() => void salvarEdicao()} style={[styles.modalSubmit, (!tagsEdicao.length || salvandoEdicao || temLinguagemPreconceituosa(comentarioEdicao)) && styles.disabled]}>{salvandoEdicao ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSubmitText}>Salvar alterações</Text>}</Pressable>
             </View>
           </View>
         </View>
@@ -504,6 +590,13 @@ const styles = StyleSheet.create({
   reportDate: { color: "#8a929b", fontSize: 11, marginTop: 9 },
   reportButton: { alignSelf: "flex-start", borderColor: "#b42318", borderRadius: 16, borderWidth: 1, marginTop: 10, paddingHorizontal: 12, paddingVertical: 7 },
   reportButtonText: { color: "#b42318", fontSize: 12, fontWeight: "700" },
+  ownerActions: { alignItems: "center", flexDirection: "row", gap: 9, marginTop: 10 },
+  ownerButton: { borderColor: "#8b0000", borderRadius: 16, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7 },
+  ownerButtonText: { color: "#8b0000", fontSize: 12, fontWeight: "700" },
+  deleteButton: { borderColor: "#b42318" },
+  deleteButtonText: { color: "#b42318" },
+  editModalCard: { backgroundColor: "#fff", borderRadius: 18, height: "85%", maxWidth: 480, padding: 18, width: "100%" },
+  editColorLabel: { fontSize: 12, fontWeight: "800", marginTop: 8 },
   modalBackdrop: { alignItems: "center", backgroundColor: "rgba(0,0,0,0.45)", flex: 1, justifyContent: "center", padding: 22 },
   modalCard: { backgroundColor: "#fff", borderRadius: 18, maxWidth: 460, padding: 20, width: "100%" },
   modalTitle: { color: "#20252b", fontSize: 18, fontWeight: "800" },

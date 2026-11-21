@@ -3,6 +3,7 @@ import { pool } from "../database/connection";
 import { RequestAutenticado } from "../middlewares/auth";
 import { gerarNomeAutor } from "../services/nomeAutor";
 import { temLinguagemPreconceituosa } from "../services/filtroConteudo";
+import { mensagemBloqueio, obterBloqueioAvaliacoes } from "../services/bloqueioAvaliacoes";
 
 const CAMPOS = `id, zona, texto AS comentario, data AS "dataCriacao", id_usuario AS "idUsuario", COALESCE(nome_autor, 'Brasil 000') AS "nomeAutor"`;
 
@@ -39,6 +40,8 @@ export async function criarComentario(req: RequestAutenticado, res: Response) {
   if (temLinguagemPreconceituosa(comentario)) {
     return res.status(400).json({ mensagem: "Troque ou remova a expressão preconceituosa antes de publicar." });
   }
+  const bloqueadoAte = await obterBloqueioAvaliacoes(idUsuario);
+  if (bloqueadoAte) return res.status(403).json({ mensagem: mensagemBloqueio(bloqueadoAte) });
 
   const resultado = await pool.query(
     `INSERT INTO comentarios (zona, texto, id_usuario, nome_autor)
@@ -61,6 +64,8 @@ export async function atualizarComentario(req: RequestAutenticado, res: Response
   if (temLinguagemPreconceituosa(comentario)) {
     return res.status(400).json({ mensagem: "Troque ou remova a expressão preconceituosa antes de publicar." });
   }
+  const bloqueadoAte = await obterBloqueioAvaliacoes(idUsuario);
+  if (bloqueadoAte) return res.status(403).json({ mensagem: mensagemBloqueio(bloqueadoAte) });
 
   const resultado = await pool.query(
     `UPDATE comentarios SET zona = $1, texto = $2
@@ -135,19 +140,40 @@ export async function denunciarComentario(req: RequestAutenticado, res: Response
       [idComentario],
     );
     const comentarioRemovido = Number(total.rows[0].total) >= 2;
+    let autorBloqueadoAte: Date | null = null;
     if (comentarioRemovido) {
       await client.query("UPDATE comentarios SET removido = TRUE WHERE id = $1", [idComentario]);
       await client.query(
         "UPDATE denuncia SET status = 'procedente' WHERE id_comentario = $1 AND status = 'pendente'",
         [idComentario],
       );
+      const idAutor = Number(comentario.rows[0].id_usuario);
+      await client.query("SELECT id FROM usuarios WHERE id = $1 FOR UPDATE", [idAutor]);
+      const totalRemovidos = await client.query(
+        `SELECT COUNT(*)::INTEGER AS total
+         FROM comentarios c
+         WHERE c.id_usuario = $1 AND c.removido = TRUE
+           AND (SELECT COUNT(DISTINCT d.id_usuario) FROM denuncia d WHERE d.id_comentario = c.id) >= 2`,
+        [idAutor],
+      );
+      if (Number(totalRemovidos.rows[0].total) >= 2) {
+        await client.query(
+          `UPDATE usuarios SET avaliacao_bloqueada_ate = NOW() + INTERVAL '3 days'
+           WHERE id = $1 AND (avaliacao_bloqueada_ate IS NULL OR avaliacao_bloqueada_ate <= NOW())`,
+          [idAutor],
+        );
+      }
+      const bloqueio = await client.query("SELECT avaliacao_bloqueada_ate FROM usuarios WHERE id = $1", [idAutor]);
+      const dataBloqueio = bloqueio.rows[0]?.avaliacao_bloqueada_ate;
+      if (dataBloqueio && new Date(dataBloqueio).getTime() > Date.now()) autorBloqueadoAte = new Date(dataBloqueio);
     }
     await client.query("COMMIT");
     return res.status(201).json({
       mensagem: comentarioRemovido
-        ? "Denúncia registrada. O comentário foi ocultado após denúncias de duas pessoas diferentes."
+        ? `Denúncia registrada. O comentário foi ocultado após denúncias de duas pessoas diferentes.${autorBloqueadoAte ? " A conta do autor foi impedida de publicar avaliações por 3 dias." : ""}`
         : "Denúncia registrada. Se outra pessoa também denunciar, o comentário será ocultado.",
       comentarioRemovido,
+      contaBloqueadaAte: autorBloqueadoAte,
     });
   } catch (error) {
     await client.query("ROLLBACK");

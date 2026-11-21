@@ -6,6 +6,7 @@ import {
   Alert,
   Image,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +24,7 @@ import MapView, {
   Marker,
   Polyline,
   Polygon,
+  PROVIDER_GOOGLE,
   type Region,
 } from "react-native-maps";
 
@@ -654,6 +656,7 @@ export default function Rotas({ navigation, route }: any) {
     <View style={expandido ? styles.mapaTelaCheia : styles.mapaContainer}>
       <MapView
         ref={expandido ? mapaExpandidoRef : mapaRef}
+        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
         style={styles.mapa}
         initialRegion={regiaoInicial}
         onMapReady={() => {

@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
-import MapView, { Marker, Polygon, type Region } from "react-native-maps";
+import MapView, { Marker, Polygon, PROVIDER_GOOGLE, type Region } from "react-native-maps";
 import { ApiError, api } from "../services/api";
 import { temLinguagemPreconceituosa } from "../services/content-filter";
 
@@ -365,6 +365,7 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
         <View style={styles.mapFrame}>
           <MapView
             ref={mapaRef}
+            provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
             initialRegion={coordenadasIniciais ? { ...coordenadasIniciais, latitudeDelta: 0.009, longitudeDelta: 0.009 } : CENTRO_INICIAL}
             onPress={(event) => setLocal(event.nativeEvent.coordinate)}
             showsUserLocation

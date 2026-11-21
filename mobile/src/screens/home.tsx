@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Location from "expo-location";
-import MapView, { Marker, Polygon, type Region } from "react-native-maps";
+import MapView, { Marker, Polygon, PROVIDER_GOOGLE, type Region } from "react-native-maps";
 import { api } from "../services/api";
 
 type Ponto = { latitude: number; longitude: number };
@@ -90,6 +90,7 @@ export default function Home({ navigation }: any) {
     <View style={styles.container}>
       <MapView
         ref={mapaRef}
+        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
         initialRegion={REGIAO_INICIAL}
         onPress={(event) => setSelecionado(event.nativeEvent.coordinate)}
         onLongPress={(event) => abrirAvaliacao(event.nativeEvent.coordinate)}

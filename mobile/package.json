@@ -12,6 +12,7 @@
     "@react-navigation/native": "^7.2.4",
     "@react-navigation/native-stack": "^7.15.1",
     "expo": "^58.0.26",
+    "expo-build-properties": "~58.0.12",
     "expo-dev-client": "~58.0.21",
     "expo-file-system": "~58.0.14",
     "expo-location": "~58.0.22",

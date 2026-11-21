@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "Zona Vermelha",
@@ -7,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/images/Icon.png",
     "userInterfaceStyle": "light",
-   
     "ios": {
       "supportsTablet": true
     },
@@ -29,20 +27,20 @@
       }
     },
     "plugins": [
-  "expo-status-bar",
-  "expo-secure-store",
-  "expo-splash-screen",
-  [
-    "expo-location",
-    {
-      "locationWhenInUsePermission": "Permitir que o Zona Vermelha use sua localização para planejar rotas."
-    }
-  ]
-],
+      "expo-status-bar",
+      "expo-secure-store",
+      "expo-splash-screen",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permitir que o Zona Vermelha use sua localização para planejar rotas."
+        }
+      ]
+    ],
     "updates": {
-  "enabled": false,
-  "checkAutomatically": "NEVER",
-  "fallbackToCacheTimeout": 0
-}
+      "enabled": false,
+      "checkAutomatically": "NEVER",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }

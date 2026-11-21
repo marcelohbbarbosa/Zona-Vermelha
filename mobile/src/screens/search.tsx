@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Keyboard, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../services/api";
 
@@ -14,27 +14,40 @@ export default function Pesquisa({ navigation, route }: any) {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
 
-  const pesquisar = async () => {
+  useEffect(() => {
     const texto = consulta.trim();
     if (texto.length < 3) {
-      setErro("Digite pelo menos 3 caracteres para pesquisar.");
       setLocais([]);
+      setErro("");
+      setCarregando(false);
       return;
     }
-    Keyboard.dismiss();
     setCarregando(true);
     setErro("");
-    try {
-      const resultado = await api(`/locais/buscar?q=${encodeURIComponent(texto)}`) as Local[];
-      setLocais(resultado);
-      if (resultado.length === 0) setErro("Nenhum local encontrado na Baixada Santista.");
-    } catch (e: any) {
-      setErro(e.message || "Não foi possível pesquisar este local.");
-      setLocais([]);
-    } finally {
-      setCarregando(false);
-    }
-  };
+    let cancelado = false;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const resultado = await api(`/locais/buscar?q=${encodeURIComponent(texto)}`, { signal: controller.signal }) as Local[];
+        if (cancelado) return;
+        setLocais(Array.isArray(resultado) ? resultado : []);
+        if (!resultado.length) setErro("Nenhum local encontrado na Baixada Santista.");
+      } catch (e: any) {
+        if (cancelado) return;
+        setErro(e.message || "Não foi possível pesquisar este local.");
+        setLocais([]);
+      } finally {
+        if (!cancelado) setCarregando(false);
+      }
+    }, 850);
+    return () => {
+      cancelado = true;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [consulta]);
+
+  const pesquisar = () => Keyboard.dismiss();
 
   const escolher = (local: Local) => {
     if (route?.params?.modo === "avaliar") {
@@ -62,7 +75,6 @@ export default function Pesquisa({ navigation, route }: any) {
           <TextInput
             autoCapitalize="words"
             autoCorrect={false}
-            autoFocus
             onChangeText={setConsulta}
             onSubmitEditing={pesquisar}
             placeholder="Pesquise um endereço ou local"
@@ -76,7 +88,7 @@ export default function Pesquisa({ navigation, route }: any) {
           </Pressable>
         </View>
       </View>
-      <ScrollView contentContainerStyle={styles.painel} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.painel} keyboardShouldPersistTaps="always">
         {erro ? <Text style={styles.mensagem}>{erro}</Text> : null}
         {locais.map((local) => (
           <Pressable accessibilityRole="button" key={local.id} onPress={() => escolher(local)} style={styles.itemLocal}>
@@ -92,14 +104,14 @@ export default function Pesquisa({ navigation, route }: any) {
 
 const styles = StyleSheet.create({
   container: { backgroundColor: "#f8f8ff", flex: 1 },
-  cabecalho: { alignItems: "center", flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 18 },
-  voltar: { alignItems: "center", backgroundColor: "#ffffff", borderRadius: 21, elevation: 7, height: 42, justifyContent: "center", width: 42 },
-  iconeVoltar: { height: 22, resizeMode: "contain", width: 22 },
-  busca: { alignItems: "center", backgroundColor: "#ffffff", borderRadius: 26, elevation: 8, flex: 1, flexDirection: "row", minHeight: 54, paddingHorizontal: 14 },
-  iconeBusca: { height: 20, resizeMode: "contain", width: 20 },
-  campoBusca: { color: "#1f2937", flex: 1, fontSize: 16, marginHorizontal: 8, paddingVertical: 0 },
-  textoPesquisar: { color: "#8b0000", fontSize: 14, fontWeight: "700" },
-  painel: { flexGrow: 1, marginTop: 24, paddingBottom: 28, paddingTop: 8 },
+  cabecalho: { alignItems: "center", flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 32 },
+  voltar: { alignItems: "center", backgroundColor: "#ffffff", borderRadius: 20, elevation: 7, height: 40, justifyContent: "center", width: 40 },
+  iconeVoltar: { height: 20, resizeMode: "contain", width: 20 },
+  busca: { alignItems: "center", backgroundColor: "#ffffff", borderRadius: 22, elevation: 8, flex: 1, flexDirection: "row", height: 40, paddingHorizontal: 11 },
+  iconeBusca: { height: 19, resizeMode: "contain", width: 19 },
+  campoBusca: { color: "#1f2937", flex: 1, fontSize: 15, marginHorizontal: 7, paddingVertical: 0 },
+  textoPesquisar: { color: "#8b0000", fontSize: 12, fontWeight: "700" },
+  painel: { flexGrow: 1, marginTop: 12, paddingBottom: 28, paddingTop: 8 },
   mensagem: { color: "#6b7280", paddingHorizontal: 24, paddingVertical: 16 },
   instrucao: { color: "#6b7280", fontSize: 15, lineHeight: 22, paddingHorizontal: 24, paddingTop: 12 },
   itemLocal: { alignItems: "center", backgroundColor: "#ffffff", borderBottomColor: "#e5e7eb", borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", minHeight: 62, paddingHorizontal: 20, paddingVertical: 10 },

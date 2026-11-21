@@ -19,10 +19,11 @@ import {
 type Comentario = {
   id: number;
   zona: string;
-  comentario: string;
+  comentario: string | null;
   dataCriacao: string;
   nomeAutor: string;
   idUsuario: number;
+  tags?: { nome: string; nivel: number }[];
 };
 
 const imagens = {
@@ -111,7 +112,7 @@ export default function Comentarios({ navigation }: any) {
   const editarComentario = (item: Comentario) => {
     setComentarioEmEdicao(item.id);
     setZona(item.zona);
-    setComentario(item.comentario);
+    setComentario(item.comentario ?? "");
   };
 
   const excluirComentario = async (id: number) => {
@@ -169,6 +170,14 @@ export default function Comentarios({ navigation }: any) {
       </View>
 
       <Text style={styles.comentario}>{item.comentario}</Text>
+      {item.tags?.length ? (
+        <View style={styles.tags}>
+          {item.tags.map((tag) => {
+            const cor = tag.nivel === 1 ? "#2f9e44" : tag.nivel === 2 ? "#d69e00" : "#d94848";
+            return <Text key={`${item.id}-${tag.nome}`} style={[styles.tag, { color: cor, backgroundColor: `${cor}20` }]}>{tag.nome}</Text>;
+          })}
+        </View>
+      ) : null}
 
       {usuarioId === item.idUsuario ? <View style={styles.cardActions}>
         <Pressable
@@ -511,6 +520,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     lineHeight: 23,
   },
+  tags: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 9 },
+  tag: { borderRadius: 12, fontSize: 11, fontWeight: "800", overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
   cardActions: {
     flexDirection: "row",
     gap: 10,

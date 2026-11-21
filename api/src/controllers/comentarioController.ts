@@ -7,7 +7,14 @@ const CAMPOS = `id, zona, texto AS comentario, data AS "dataCriacao", id_usuario
 
 export async function listarComentarios(req: RequestAutenticado, res: Response) {
   const resultado = await pool.query(
-    `SELECT ${CAMPOS} FROM comentarios WHERE removido = FALSE ORDER BY data DESC`
+    `SELECT ${CAMPOS},
+       COALESCE((
+         SELECT json_agg(json_build_object('nome', c.nome, 'nivel', c.nivel) ORDER BY c.nome)
+         FROM comentario_categoria cc
+         JOIN categorias c ON c.id = cc.id_categoria
+         WHERE cc.id_comentario = comentarios.id
+       ), '[]'::json) AS tags
+     FROM comentarios WHERE removido = FALSE ORDER BY data DESC`
   );
   res.json(resultado.rows);
 }

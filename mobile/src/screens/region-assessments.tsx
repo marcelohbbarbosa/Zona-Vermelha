@@ -3,8 +3,12 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   Text,
   TextInput,
@@ -14,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import MapView, { Marker, Polygon, type Region } from "react-native-maps";
 import { ApiError, api } from "../services/api";
+import { temLinguagemPreconceituosa } from "../services/content-filter";
 
 type Coordenadas = { latitude: number; longitude: number };
 type Status = "verde" | "amarelo" | "vermelho" | "sem_dados";
@@ -29,6 +34,7 @@ type Avaliacao = {
   comentario: string | null;
   criadaEm: string;
 };
+type MotivoDenuncia = "Preconceito ou discriminação" | "Ameaça ou incentivo à violência" | "Spam ou conteúdo irrelevante" | "Outro motivo";
 type Resumo = Coordenadas & {
   status: Status;
   total: number;
@@ -83,6 +89,12 @@ const rotulosStatus: Record<Status, string> = {
   vermelho: "Região com muitos relatos de risco",
   sem_dados: "Ainda sem avaliações",
 };
+const MOTIVOS_DENUNCIA: MotivoDenuncia[] = [
+  "Preconceito ou discriminação",
+  "Ameaça ou incentivo à violência",
+  "Spam ou conteúdo irrelevante",
+  "Outro motivo",
+];
 
 function formatarData(valor: string) {
   return new Date(valor).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
@@ -90,6 +102,8 @@ function formatarData(valor: string) {
 
 export default function AvaliacoesRegiao({ navigation, route }: any) {
   const mapaRef = useRef<MapView>(null);
+  const scrollRef = useRef<ScrollViewInstance | null>(null);
+  const comentarioY = useRef(0);
   const coordenadasIniciais = useMemo<Coordenadas | null>(() => {
     const latitude = Number(route?.params?.latitude);
     const longitude = Number(route?.params?.longitude);
@@ -119,6 +133,10 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  const [denunciaAlvo, setDenunciaAlvo] = useState<Avaliacao | null>(null);
+  const [motivoDenuncia, setMotivoDenuncia] = useState<MotivoDenuncia | null>(null);
+  const [enviandoDenuncia, setEnviandoDenuncia] = useState(false);
+  const comentarioPreconceituoso = temLinguagemPreconceituosa(comentario);
 
   const localizar = useCallback(async () => {
     try {
@@ -200,6 +218,10 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
       Alert.alert("Escolha uma tag", "Selecione uma tag verde, amarela ou vermelha antes de publicar.");
       return;
     }
+    if (comentarioPreconceituoso) {
+      setErro("Troque ou remova a expressão preconceituosa antes de publicar.");
+      return;
+    }
     setSalvando(true);
     try {
       await api("/avaliacoes-regiao", {
@@ -225,6 +247,34 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
     }
   };
 
+  const enviarDenuncia = async () => {
+    if (!denunciaAlvo || !motivoDenuncia) return;
+    setEnviandoDenuncia(true);
+    try {
+      const resultado = await api(`/comentarios/${denunciaAlvo.id}/denunciar`, {
+        method: "POST",
+        autenticado: true,
+        body: { motivo: motivoDenuncia },
+      }) as { mensagem: string };
+      setDenunciaAlvo(null);
+      setMotivoDenuncia(null);
+      if (local) await carregarResumo(local);
+      Alert.alert("Denúncia enviada", resultado.mensagem);
+    } catch (e: any) {
+      if (e instanceof ApiError && e.status === 401) {
+        setDenunciaAlvo(null);
+        Alert.alert("Entre na sua conta", "Faça login para denunciar um comentário.", [
+          { text: "Agora não", style: "cancel" },
+          { text: "Entrar", onPress: () => navigation.navigate("Login") },
+        ]);
+      } else {
+        Alert.alert("Não foi possível denunciar", e.message || "Tente novamente em instantes.");
+      }
+    } finally {
+      setEnviandoDenuncia(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -237,7 +287,15 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardArea}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.mapHeading}>
           <Text style={styles.sectionTitle}>Onde fica?</Text>
           <Pressable onPress={() => void localizar()} style={styles.locationButton}>
@@ -331,13 +389,18 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
           maxLength={1000}
           multiline
           onChangeText={setComentario}
+          onFocus={() => {
+            setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, comentarioY.current - 24), animated: true }), 250);
+          }}
+          onLayout={(event) => { comentarioY.current = event.nativeEvent.layout.y; }}
           placeholder="Conte o que aconteceu (opcional)"
           placeholderTextColor="#77808c"
           style={styles.input}
           textAlignVertical="top"
           value={comentario}
         />
-        <Pressable disabled={salvando} onPress={() => void salvar()} style={[styles.submit, salvando && styles.disabled]}>
+        {comentarioPreconceituoso ? <Text style={styles.erroConteudo}>Este texto contém uma expressão preconceituosa. Troque ou remova a palavra para publicar.</Text> : null}
+        <Pressable disabled={salvando || comentarioPreconceituoso} onPress={() => void salvar()} style={[styles.submit, (salvando || comentarioPreconceituoso) && styles.disabled]}>
           {salvando ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Publicar avaliação</Text>}
         </Pressable>
         <Text style={styles.scoringNote}>O resumo considera os últimos 90 dias: tags verdes melhoram o resultado, amarelas indicam alerta e vermelhas pesam o dobro. Você pode selecionar várias tags nesta publicação.</Text>
@@ -355,15 +418,41 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
             {item.zona ? <Text style={styles.reportZone}>{item.zona}</Text> : null}
             {item.comentario ? <Text style={styles.reportComment}>{item.comentario}</Text> : <Text style={styles.noComment}>Sem comentário</Text>}
             <Text style={styles.reportDate}>{formatarData(item.criadaEm)}</Text>
+            <Pressable accessibilityRole="button" onPress={() => { setDenunciaAlvo(item); setMotivoDenuncia(null); }} style={styles.reportButton}>
+              <Text style={styles.reportButtonText}>Denunciar comentário</Text>
+            </Pressable>
           </View>
         )) : <Text style={styles.empty}>Ainda não há relatos recentes. Você pode ser a primeira pessoa a avaliar este local.</Text>}
       </ScrollView>
+      </KeyboardAvoidingView>
+      <Modal visible={Boolean(denunciaAlvo)} transparent animationType="fade" onRequestClose={() => setDenunciaAlvo(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Denunciar comentário</Text>
+            <Text style={styles.modalDescription}>Escolha o motivo. Uma denúncia por pessoa é permitida para cada comentário.</Text>
+            {MOTIVOS_DENUNCIA.map((motivo) => (
+              <Pressable key={motivo} onPress={() => setMotivoDenuncia(motivo)} style={[styles.motivoItem, motivoDenuncia === motivo && styles.motivoSelecionado]}>
+                <Text style={[styles.motivoTexto, motivoDenuncia === motivo && styles.motivoTextoSelecionado]}>{motivo}</Text>
+              </Pressable>
+            ))}
+            <View style={styles.modalActions}>
+              <Pressable disabled={enviandoDenuncia} onPress={() => setDenunciaAlvo(null)} style={styles.modalCancel}>
+                <Text style={styles.modalCancelText}>Cancelar</Text>
+              </Pressable>
+              <Pressable disabled={!motivoDenuncia || enviandoDenuncia} onPress={() => void enviarDenuncia()} style={[styles.modalSubmit, (!motivoDenuncia || enviandoDenuncia) && styles.disabled]}>
+                {enviandoDenuncia ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSubmitText}>Enviar denúncia</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { backgroundColor: "#f6f7f9", flex: 1 },
+  keyboardArea: { flex: 1 },
   header: { alignItems: "center", backgroundColor: "#fff", flexDirection: "row", gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   back: { alignItems: "center", backgroundColor: "#f1f2f4", borderRadius: 21, height: 42, justifyContent: "center", width: 42 },
   backIcon: { height: 21, resizeMode: "contain", width: 21 },
@@ -399,6 +488,7 @@ const styles = StyleSheet.create({
   tagNote: { color: "#68717c", fontSize: 11, lineHeight: 16, marginBottom: 8 },
   selectedTag: { color: "#343a40", fontSize: 13, fontWeight: "700", marginBottom: 4 },
   input: { backgroundColor: "#fff", borderColor: "#dfe3e8", borderRadius: 12, borderWidth: 1, color: "#252a30", fontSize: 14, height: 96, marginTop: 8, padding: 12 },
+  erroConteudo: { color: "#b42318", fontSize: 13, fontWeight: "700", lineHeight: 19, marginTop: 7 },
   submit: { alignItems: "center", backgroundColor: "#c83232", borderRadius: 12, justifyContent: "center", marginTop: 12, minHeight: 48 },
   submitText: { color: "#fff", fontSize: 15, fontWeight: "800" },
   disabled: { opacity: 0.65 },
@@ -412,5 +502,20 @@ const styles = StyleSheet.create({
   reportComment: { color: "#48515b", fontSize: 14, lineHeight: 20, marginTop: 8 },
   noComment: { color: "#808892", fontSize: 13, fontStyle: "italic", marginTop: 8 },
   reportDate: { color: "#8a929b", fontSize: 11, marginTop: 9 },
+  reportButton: { alignSelf: "flex-start", borderColor: "#b42318", borderRadius: 16, borderWidth: 1, marginTop: 10, paddingHorizontal: 12, paddingVertical: 7 },
+  reportButtonText: { color: "#b42318", fontSize: 12, fontWeight: "700" },
+  modalBackdrop: { alignItems: "center", backgroundColor: "rgba(0,0,0,0.45)", flex: 1, justifyContent: "center", padding: 22 },
+  modalCard: { backgroundColor: "#fff", borderRadius: 18, maxWidth: 460, padding: 20, width: "100%" },
+  modalTitle: { color: "#20252b", fontSize: 18, fontWeight: "800" },
+  modalDescription: { color: "#68717c", fontSize: 13, lineHeight: 19, marginBottom: 10, marginTop: 6 },
+  motivoItem: { borderColor: "#dfe3e8", borderRadius: 10, borderWidth: 1, marginTop: 8, padding: 12 },
+  motivoSelecionado: { backgroundColor: "#fff1f2", borderColor: "#b42318" },
+  motivoTexto: { color: "#40464e", fontSize: 14 },
+  motivoTextoSelecionado: { color: "#8b0000", fontWeight: "800" },
+  modalActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end", marginTop: 16 },
+  modalCancel: { alignItems: "center", borderColor: "#dfe3e8", borderRadius: 10, borderWidth: 1, justifyContent: "center", minHeight: 42, paddingHorizontal: 14 },
+  modalCancelText: { color: "#40464e", fontSize: 13, fontWeight: "700" },
+  modalSubmit: { alignItems: "center", backgroundColor: "#8b0000", borderRadius: 10, justifyContent: "center", minHeight: 42, paddingHorizontal: 14 },
+  modalSubmitText: { color: "#fff", fontSize: 13, fontWeight: "800" },
   empty: { color: "#707984", fontSize: 13, lineHeight: 19, paddingVertical: 10 },
 });

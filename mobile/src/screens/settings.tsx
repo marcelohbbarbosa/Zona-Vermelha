@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Image, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const imagens = {
   conta: require("../../assets/images/AccountConfig.png"),

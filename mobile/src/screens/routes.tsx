@@ -15,7 +15,7 @@ import {
   View,
 } from "react-native";
 
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import * as Location from "expo-location";
 import { File, Paths } from "expo-file-system";
@@ -104,6 +104,7 @@ function celulasDeRisco(riscos: RiscoRota["risks"] = []) {
 }
 
 export default function Rotas({ navigation, route }: any) {
+  const insets = useSafeAreaInsets();
   const mapaRef = useRef<MapView>(null);
   const mapaExpandidoRef = useRef<MapView>(null);
 
@@ -688,7 +689,7 @@ export default function Rotas({ navigation, route }: any) {
         <Text style={styles.textoLegendaMapa}>🟥 Zona vermelha</Text>
         <Text style={styles.textoLegendaMapa}>🟨 Zona amarela</Text>
       </View>
-      <Pressable style={styles.botaoExpandirMapa} onPress={() => setMapaExpandido(!expandido)}>
+      <Pressable style={[styles.botaoExpandirMapa, expandido && { bottom: insets.bottom + 16 }]} onPress={() => setMapaExpandido(!expandido)}>
         <Text style={styles.textoBotaoExpandir}>{expandido ? "Voltar ao tamanho normal" : "Ampliar mapa"}</Text>
       </Pressable>
     </View>

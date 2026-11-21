@@ -4,13 +4,13 @@ import {
   Alert,
   Image,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../services/api";
 
 type Coordenadas = { latitude: number; longitude: number };

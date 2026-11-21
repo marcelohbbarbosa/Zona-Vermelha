@@ -651,14 +651,14 @@ export default function Rotas({ navigation, route }: any) {
     campoAtivo === "origem" ? resultadosOrigem : resultadosDestino;
 
   const renderMapa = (expandido = false) => (
-    <View style={[styles.mapaContainer, expandido && styles.mapaTelaCheia]}>
+    <View style={expandido ? styles.mapaTelaCheia : styles.mapaContainer}>
       <MapView
         ref={expandido ? mapaExpandidoRef : mapaRef}
         style={styles.mapa}
         initialRegion={regiaoInicial}
         onMapReady={() => {
-          if (expandido && resultadoRota?.coordenadas?.length) {
-            setTimeout(() => mapaExpandidoRef.current?.fitToCoordinates(resultadoRota.coordenadas, { edgePadding: { top: 80, right: 45, bottom: 80, left: 45 }, animated: true }), 150);
+          if (!expandido && resultadoRota?.coordenadas?.length) {
+            mapaRef.current?.fitToCoordinates(resultadoRota.coordenadas, { edgePadding: { top: 55, right: 45, bottom: 55, left: 45 }, animated: true });
           }
         }}
         mapType="standard"
@@ -681,7 +681,7 @@ export default function Rotas({ navigation, route }: any) {
           />
         ))}
       </MapView>
-      <View style={styles.legendaMapa}>
+      <View style={[styles.legendaMapa, expandido && styles.legendaMapaExpandida]}>
         <Text style={styles.textoLegendaMapa}>🟥 Zona vermelha</Text>
         <Text style={styles.textoLegendaMapa}>🟨 Zona amarela</Text>
       </View>
@@ -989,10 +989,24 @@ export default function Rotas({ navigation, route }: any) {
           ) : null}
         </View>
       </ScrollView>
-      <Modal visible={mapaExpandido} animationType="slide" onRequestClose={() => setMapaExpandido(false)}>
-        <SafeAreaView style={styles.modalMapa}>
+      <Modal
+        visible={mapaExpandido}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        onShow={() => {
+          if (resultadoRota?.coordenadas?.length) {
+            setTimeout(() => mapaExpandidoRef.current?.fitToCoordinates(resultadoRota.coordenadas, {
+              edgePadding: { top: 90, right: 55, bottom: 110, left: 55 },
+              animated: true,
+            }), 450);
+          }
+        }}
+        onRequestClose={() => setMapaExpandido(false)}
+      >
+        <View style={styles.modalMapa}>
           {renderMapa(true)}
-        </SafeAreaView>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1136,13 +1150,14 @@ const styles = StyleSheet.create({
   overflow: "hidden",
   backgroundColor: "#e5e5e5",
 },
-  mapaTelaCheia: { borderRadius: 0, flex: 1, height: undefined, margin: 0, width: "100%" },
+  mapaTelaCheia: { alignSelf: "stretch", backgroundColor: "#e5e5e5", borderRadius: 0, flex: 1, height: "100%", marginBottom: 0, marginHorizontal: 0, marginTop: 0, overflow: "hidden", padding: 0, position: "relative", width: "100%" },
   mapa: { flex: 1 },
   legendaMapa: { backgroundColor: "rgba(255,255,255,0.93)", borderRadius: 9, left: 10, paddingHorizontal: 9, paddingVertical: 6, position: "absolute", top: 10 },
+  legendaMapaExpandida: { top: 58 },
   textoLegendaMapa: { color: "#273142", fontSize: 11, fontWeight: "700", lineHeight: 17 },
   botaoExpandirMapa: { backgroundColor: "#fff", borderColor: "#d1d5db", borderRadius: 18, borderWidth: 1, bottom: 10, paddingHorizontal: 13, paddingVertical: 9, position: "absolute", right: 10 },
   textoBotaoExpandir: { color: "#8b0000", fontSize: 12, fontWeight: "800" },
-  modalMapa: { backgroundColor: "#f8f8ff", flex: 1 },
+  modalMapa: { backgroundColor: "#e5e5e5", flex: 1, margin: 0, padding: 0, width: "100%" },
   tituloLista: {
     color: "#1f2937",
     fontSize: 17,

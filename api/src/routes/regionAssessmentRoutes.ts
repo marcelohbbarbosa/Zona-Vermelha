@@ -3,6 +3,7 @@ import { pool } from "../database/connection";
 import { autenticar, RequestAutenticado } from "../middlewares/auth";
 import { gerarNomeAutor } from "../services/nomeAutor";
 import { temLinguagemPreconceituosa } from "../services/filtroConteudo";
+import { mensagemBloqueio, obterBloqueioAvaliacoes } from "../services/bloqueioAvaliacoes";
 
 const router = Router();
 // Células de aproximadamente 400 m, que cobrem em geral 4 a 8 quarteirões.
@@ -148,6 +149,8 @@ router.post("/avaliacoes-regiao", autenticar, async (req: RequestAutenticado, re
   if (typeof comentario === "string" && temLinguagemPreconceituosa(comentario)) {
     return res.status(400).json({ mensagem: "Troque ou remova a expressão preconceituosa antes de publicar." });
   }
+  const bloqueadoAte = await obterBloqueioAvaliacoes(req.usuario!.id);
+  if (bloqueadoAte) return res.status(403).json({ mensagem: mensagemBloqueio(bloqueadoAte) });
 
   const tagsUnicas = [...new Set(tags as string[])];
   const definicoes = tagsUnicas.map((id) => TAG_POR_ID.get(id as typeof TAGS[number]["id"])!);
@@ -191,6 +194,67 @@ router.post("/avaliacoes-regiao", autenticar, async (req: RequestAutenticado, re
   } finally {
     client.release();
   }
+});
+
+router.put("/avaliacoes-regiao/:id", autenticar, async (req: RequestAutenticado, res: Response, next: NextFunction) => {
+  const id = Number(req.params.id);
+  const { zona, tags, comentario } = req.body ?? {};
+  if (!Number.isInteger(id) || id <= 0 || typeof zona !== "string" || !zona.trim() || zona.trim().length > 200
+    || !Array.isArray(tags) || tags.length === 0 || tags.length > TAGS.length
+    || !tags.every((tag: unknown) => typeof tag === "string" && TAG_POR_ID.has(tag as typeof TAGS[number]["id"]))
+    || (comentario != null && (typeof comentario !== "string" || comentario.trim().length > 1000))) {
+    return res.status(400).json({ mensagem: "Informe uma zona, pelo menos uma tag e um comentário de até 1000 caracteres." });
+  }
+  if (typeof comentario === "string" && temLinguagemPreconceituosa(comentario)) {
+    return res.status(400).json({ mensagem: "Troque ou remova a expressão preconceituosa antes de publicar." });
+  }
+  const bloqueadoAte = await obterBloqueioAvaliacoes(req.usuario!.id);
+  if (bloqueadoAte) return res.status(403).json({ mensagem: mensagemBloqueio(bloqueadoAte) });
+  const definicoes = [...new Set(tags as string[])].map((tag) => TAG_POR_ID.get(tag as typeof TAGS[number]["id"])!);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const existente = await client.query("SELECT id_usuario FROM comentarios WHERE id = $1 AND removido = FALSE FOR UPDATE", [id]);
+    if (!existente.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ mensagem: "Esta avaliação não está mais disponível." });
+    }
+    if (Number(existente.rows[0].id_usuario) !== req.usuario!.id) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ mensagem: "Você só pode editar suas próprias avaliações." });
+    }
+    const categorias = await client.query(
+      `SELECT DISTINCT ON (lower(btrim(nome))) id, nome, nivel FROM categorias
+       WHERE lower(btrim(nome)) = ANY($1::text[]) ORDER BY lower(btrim(nome)), id`,
+      [definicoes.map((tag) => tag.nome.toLocaleLowerCase("pt-BR"))],
+    );
+    if (categorias.rowCount !== definicoes.length) throw new Error("TAGS_DO_BANCO_INCOMPLETAS");
+    await client.query("UPDATE comentarios SET zona = $1, texto = $2 WHERE id = $3", [zona.trim(), comentario?.trim() || null, id]);
+    await client.query("DELETE FROM comentario_categoria WHERE id_comentario = $1", [id]);
+    for (const categoria of categorias.rows) {
+      await client.query("INSERT INTO comentario_categoria (id_comentario, id_categoria) VALUES ($1,$2)", [id, categoria.id]);
+    }
+    await client.query("COMMIT");
+    return res.json({ mensagem: "Sua avaliação foi atualizada." });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    return next(error);
+  } finally { client.release(); }
+});
+
+router.delete("/avaliacoes-regiao/:id", autenticar, async (req: RequestAutenticado, res: Response, next: NextFunction) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ mensagem: "Avaliação inválida." });
+    const removido = await pool.query(
+      "UPDATE comentarios SET removido = TRUE WHERE id = $1 AND id_usuario = $2 AND removido = FALSE RETURNING id",
+      [id, req.usuario!.id],
+    );
+    if (removido.rowCount) return res.status(204).send();
+    const existe = await pool.query("SELECT id FROM comentarios WHERE id = $1 AND removido = FALSE", [id]);
+    if (!existe.rowCount) return res.status(404).json({ mensagem: "Esta avaliação não está mais disponível." });
+    return res.status(403).json({ mensagem: "Você só pode apagar suas próprias avaliações." });
+  } catch (error) { return next(error); }
 });
 
 export default router;

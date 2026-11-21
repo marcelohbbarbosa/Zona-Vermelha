@@ -6,11 +6,11 @@ import {
   TextInput,
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Image,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Contatos({ navigation }: any) {
 

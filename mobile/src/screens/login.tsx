@@ -59,7 +59,8 @@ export default function Login({ navigation }: LoginProps) {
     try {
       const dados = await api("/auth/login", {
         method: "POST",
-        timeoutMs: 10000,
+        // O Render pode levar alguns segundos para acordar após ficar inativo.
+        timeoutMs: 30000,
         body: {
           email: emailNormalizado,
           senha,
@@ -104,7 +105,7 @@ export default function Login({ navigation }: LoginProps) {
     try {
       const dados = await api(caminho, {
         method: "POST",
-        timeoutMs: 10000,
+        timeoutMs: 30000,
         body: {
           email: emailNormalizado,
         },
@@ -132,7 +133,7 @@ export default function Login({ navigation }: LoginProps) {
   return (
     <SafeAreaView
       style={styles.container}
-      edges={["top", "left", "right"]}
+      edges={["top", "left", "right", "bottom"]}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}

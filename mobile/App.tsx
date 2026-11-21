@@ -1,5 +1,8 @@
+import { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import Home from "./src/screens/home";
 import Contatos from "./src/screens/contact";
@@ -12,16 +15,43 @@ import Conta from "./src/screens/account";
 import Configuracoes from "./src/screens/settings";
 import Pesquisa from "./src/screens/search";
 import AvaliacoesRegiao from "./src/screens/region-assessments";
+import { lerToken } from "./src/services/api";
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  const [rotaInicial, setRotaInicial] = useState<"Login" | "Home" | null>(null);
+
+  useEffect(() => {
+    let ativo = true;
+    lerToken()
+      .then((token) => {
+        if (ativo) setRotaInicial(token ? "Home" : "Login");
+      })
+      .catch(() => {
+        if (ativo) setRotaInicial("Login");
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  if (rotaInicial === null) {
+    return (
+      <View style={styles.inicializando}>
+        <ActivityIndicator color="#8b0000" size="large" />
+      </View>
+    );
+  }
+
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="Login"
-        screenOptions={{ headerShown: false }}
-      >
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName={rotaInicial}
+          screenOptions={{ headerShown: false }}
+        >
 
         <Stack.Screen
           name="Login"
@@ -82,7 +112,12 @@ export default function App() {
           name="AvaliacoesRegiao"
           component={AvaliacoesRegiao}
         />
-      </Stack.Navigator>
-    </NavigationContainer>
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  inicializando: { alignItems: "center", backgroundColor: "#f8f8ff", flex: 1, justifyContent: "center" },
+});

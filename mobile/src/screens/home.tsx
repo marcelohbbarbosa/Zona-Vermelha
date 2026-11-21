@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Location from "expo-location";
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE, type Region } from "react-native-maps";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../services/api";
 
 type Ponto = { latitude: number; longitude: number };
@@ -31,6 +32,7 @@ function coordenadasDaZona(item: ResumoMapa) {
 }
 
 export default function Home({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const mapaRef = useRef<MapView>(null);
   const [regiao, setRegiao] = useState<Region>(REGIAO_INICIAL);
   const [selecionado, setSelecionado] = useState<Ponto | null>(null);
@@ -133,7 +135,7 @@ export default function Home({ navigation }: any) {
       </Pressable>
 
       {erroMapa ? <Text style={styles.mapError}>{erroMapa}</Text> : null}
-      <View style={styles.bottomPanel}>
+      <View style={[styles.bottomPanel, { bottom: insets.bottom }]}>
         <Pressable accessibilityLabel="Comentários" onPress={() => navigation.navigate("Comentarios")} style={styles.navButton}>
           <Image source={require("../../assets/images/Comment.png")} style={styles.navIcon} />
         </Pressable>

@@ -150,6 +150,21 @@ router.get("/rotas/salvas", autenticar, async (req: RequestAutenticado, res: Res
   } catch (error) { return next(error); }
 });
 
+router.delete("/rotas/salvas/:id", autenticar, async (req: RequestAutenticado, res: Response, next: NextFunction) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ mensagem: "Informe uma rota válida." });
+  }
+  try {
+    const deleted = await pool.query(
+      "DELETE FROM rota WHERE id = $1 AND id_usuario = $2 RETURNING id",
+      [id, req.usuario!.id],
+    );
+    if (!deleted.rowCount) return res.status(404).json({ mensagem: "Rota salva não encontrada." });
+    return res.status(204).send();
+  } catch (error) { return next(error); }
+});
+
 router.post("/rotas/salvar", autenticar, async (req: RequestAutenticado, res: Response, next: NextFunction) => {
   try {
     const { nome, origem, destino, origin, destination, route, avoidYellow = false, avoidRed = false } = req.body ?? {};

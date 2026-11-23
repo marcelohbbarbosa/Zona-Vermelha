@@ -198,12 +198,11 @@ router.post("/avaliacoes-regiao", autenticar, async (req: RequestAutenticado, re
 
 router.put("/avaliacoes-regiao/:id", autenticar, async (req: RequestAutenticado, res: Response, next: NextFunction) => {
   const id = Number(req.params.id);
-  const { zona, tags, comentario } = req.body ?? {};
-  if (!Number.isInteger(id) || id <= 0 || typeof zona !== "string" || !zona.trim() || zona.trim().length > 200
-    || !Array.isArray(tags) || tags.length === 0 || tags.length > TAGS.length
+  const { tags, comentario } = req.body ?? {};
+  if (!Number.isInteger(id) || id <= 0 || !Array.isArray(tags) || tags.length === 0 || tags.length > TAGS.length
     || !tags.every((tag: unknown) => typeof tag === "string" && TAG_POR_ID.has(tag as typeof TAGS[number]["id"]))
     || (comentario != null && (typeof comentario !== "string" || comentario.trim().length > 1000))) {
-    return res.status(400).json({ mensagem: "Informe uma zona, pelo menos uma tag e um comentário de até 1000 caracteres." });
+    return res.status(400).json({ mensagem: "Informe pelo menos uma tag e um comentário de até 1000 caracteres." });
   }
   if (typeof comentario === "string" && temLinguagemPreconceituosa(comentario)) {
     return res.status(400).json({ mensagem: "Troque ou remova a expressão preconceituosa antes de publicar." });
@@ -229,7 +228,7 @@ router.put("/avaliacoes-regiao/:id", autenticar, async (req: RequestAutenticado,
       [definicoes.map((tag) => tag.nome.toLocaleLowerCase("pt-BR"))],
     );
     if (categorias.rowCount !== definicoes.length) throw new Error("TAGS_DO_BANCO_INCOMPLETAS");
-    await client.query("UPDATE comentarios SET zona = $1, texto = $2 WHERE id = $3", [zona.trim(), comentario?.trim() || null, id]);
+    await client.query("UPDATE comentarios SET texto = $1 WHERE id = $2", [comentario?.trim() || null, id]);
     await client.query("DELETE FROM comentario_categoria WHERE id_comentario = $1", [id]);
     for (const categoria of categorias.rows) {
       await client.query("INSERT INTO comentario_categoria (id_comentario, id_categoria) VALUES ($1,$2)", [id, categoria.id]);

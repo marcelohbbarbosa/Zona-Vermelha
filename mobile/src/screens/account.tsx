@@ -1,15 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, limparToken } from "../services/api";
 
 type Perfil = { id: number; email: string; emailVerificado: boolean };
 type Comentario = { id: number; zona: string; comentario: string; dataCriacao: string; nomeAutor: string };
+type RotaSalva = { id: number; nome: string; origem: string; destino: string; disponivelOffline: boolean };
 const voltar = require("../../assets/images/Return.png");
 
 export default function Conta({ navigation }: any) {
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
+  const [rotas, setRotas] = useState<RotaSalva[]>([]);
+  const [abaAtiva, setAbaAtiva] = useState<"comentarios" | "rotas">("comentarios");
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
 
@@ -17,12 +21,14 @@ export default function Conta({ navigation }: any) {
     setCarregando(true);
     setErro("");
     try {
-      const [dadosPerfil, recentes] = await Promise.all([
+      const [dadosPerfil, recentes, rotas] = await Promise.all([
         api("/auth/perfil", { autenticado: true }) as Promise<Perfil>,
         api("/comentarios/meus", { autenticado: true }) as Promise<Comentario[]>,
+        api("/rotas/salvas", { autenticado: true }) as Promise<RotaSalva[]>,
       ]);
       setPerfil(dadosPerfil);
       setComentarios(recentes);
+      setRotas(rotas);
     } catch (e: any) {
       setErro(e.message || "Não foi possível carregar sua conta.");
     } finally {
@@ -30,7 +36,9 @@ export default function Conta({ navigation }: any) {
     }
   }, []);
 
-  useEffect(() => { carregarConta(); }, [carregarConta]);
+  useFocusEffect(useCallback(() => {
+    void carregarConta();
+  }, [carregarConta]));
 
   const sair = async () => {
     await limparToken();
@@ -57,18 +65,43 @@ export default function Conta({ navigation }: any) {
           {carregando ? <ActivityIndicator color="#8b0000" style={styles.carregando} /> : null}
           {erro ? <Text style={styles.erro}>{erro}</Text> : null}
 
-          <Text style={styles.tituloRecentes}>Meus comentários recentes</Text>
-          {!carregando && comentarios.length === 0 ? <Text style={styles.vazio}>Você ainda não publicou comentários.</Text> : null}
-          {comentarios.map((item) => (
-            <View key={item.id} style={styles.cardComentario}>
-              <View style={styles.linhaComentario}>
-                <Text style={styles.zona}>{item.zona}</Text>
-                <Text style={styles.data}>{formatarData(item.dataCriacao)}</Text>
-              </View>
-              <Text style={styles.textoComentario}>{item.comentario}</Text>
-              <Text style={styles.apelido}>Publicado como {item.nomeAutor}</Text>
-            </View>
-          ))}
+          <View style={styles.filtros}>
+            <Pressable onPress={() => setAbaAtiva("comentarios")} style={[styles.filtro, abaAtiva === "comentarios" && styles.filtroAtivo]}>
+              <Text style={[styles.textoFiltro, abaAtiva === "comentarios" && styles.textoFiltroAtivo]}>Comentários</Text>
+            </Pressable>
+            <Pressable onPress={() => setAbaAtiva("rotas")} style={[styles.filtro, abaAtiva === "rotas" && styles.filtroAtivo]}>
+              <Text style={[styles.textoFiltro, abaAtiva === "rotas" && styles.textoFiltroAtivo]}>Rotas</Text>
+            </Pressable>
+          </View>
+
+          {abaAtiva === "comentarios" ? (
+            <>
+              <Text style={styles.tituloRecentes}>Meus comentários recentes</Text>
+              {!carregando && comentarios.length === 0 ? <Text style={styles.vazio}>Você ainda não publicou comentários.</Text> : null}
+              {comentarios.map((item) => (
+                <View key={item.id} style={styles.cardComentario}>
+                  <View style={styles.linhaComentario}>
+                    <Text style={styles.zona}>{item.zona}</Text>
+                    <Text style={styles.data}>{formatarData(item.dataCriacao)}</Text>
+                  </View>
+                  <Text style={styles.textoComentario}>{item.comentario}</Text>
+                  <Text style={styles.apelido}>Publicado como {item.nomeAutor}</Text>
+                </View>
+              ))}
+            </>
+          ) : (
+            <>
+              <Text style={styles.tituloRecentes}>Minhas rotas salvas</Text>
+              {!carregando && rotas.length === 0 ? <Text style={styles.vazio}>Você ainda não salvou rotas.</Text> : null}
+              {rotas.map((item) => (
+                <View key={item.id} style={styles.cardRota}>
+                  <Text style={styles.nomeRota}>{item.nome}</Text>
+                  <Text style={styles.enderecoRota}>{item.origem} → {item.destino}</Text>
+                  {item.disponivelOffline ? <Text style={styles.rotaOffline}>Download registrado na conta</Text> : null}
+                </View>
+              ))}
+            </>
+          )}
 
           <Pressable accessibilityRole="button" onPress={sair} style={styles.botaoSair}>
             <Text style={styles.textoBotaoSair}>Sair da conta</Text>
@@ -101,6 +134,11 @@ const styles = StyleSheet.create({
   carregando: { marginTop: 20 },
   erro: { color: "#b91c1c", marginTop: 16 },
   tituloRecentes: { color: "#1f2937", fontSize: 18, fontWeight: "800", marginTop: 26 },
+  filtros: { flexDirection: "row", gap: 8, marginTop: 22 },
+  filtro: { alignItems: "center", backgroundColor: "#ffffff", borderColor: "#e1e4e8", borderRadius: 18, borderWidth: 1, flex: 1, paddingHorizontal: 13, paddingVertical: 9 },
+  filtroAtivo: { backgroundColor: "#8b0000", borderColor: "#8b0000" },
+  textoFiltro: { color: "#4b5563", fontSize: 13, fontWeight: "700" },
+  textoFiltroAtivo: { color: "#ffffff" },
   vazio: { color: "#6b7280", fontSize: 14, marginTop: 12 },
   cardComentario: { backgroundColor: "#ffffff", borderRadius: 14, marginTop: 12, padding: 15 },
   linhaComentario: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
@@ -108,6 +146,10 @@ const styles = StyleSheet.create({
   data: { color: "#6b7280", fontSize: 12 },
   textoComentario: { color: "#1f2937", fontSize: 15, lineHeight: 21, marginTop: 8 },
   apelido: { color: "#6b7280", fontSize: 12, marginTop: 9 },
+  cardRota: { backgroundColor: "#ffffff", borderRadius: 14, marginTop: 12, padding: 15 },
+  nomeRota: { color: "#1f2937", fontSize: 15, fontWeight: "800" },
+  enderecoRota: { color: "#626b75", fontSize: 13, lineHeight: 18, marginTop: 5 },
+  rotaOffline: { color: "#24823b", fontSize: 12, fontWeight: "700", marginTop: 7 },
   botaoSair: { alignItems: "center", backgroundColor: "#8b0000", borderRadius: 24, justifyContent: "center", marginBottom: 22, marginTop: 26, minHeight: 50 },
   textoBotaoSair: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
 });

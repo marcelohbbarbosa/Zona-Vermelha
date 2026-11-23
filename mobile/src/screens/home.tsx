@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Location from "expo-location";
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -37,11 +37,9 @@ export default function Home({ navigation }: any) {
   const [regiao, setRegiao] = useState<Region>(REGIAO_INICIAL);
   const [selecionado, setSelecionado] = useState<Ponto | null>(null);
   const [resumos, setResumos] = useState<ResumoMapa[]>([]);
-  const [localizando, setLocalizando] = useState(true);
   const [erroMapa, setErroMapa] = useState("");
 
   const centralizarNaLocalizacao = useCallback(async (mostrarErro = false) => {
-    setLocalizando(true);
     try {
       const permissao = await Location.requestForegroundPermissionsAsync();
       if (permissao.status !== "granted") {
@@ -56,8 +54,6 @@ export default function Home({ navigation }: any) {
       mapaRef.current?.animateToRegion(novaRegiao, 450);
     } catch {
       if (mostrarErro) Alert.alert("Não foi possível localizar", "Toque no mapa para escolher o local manualmente.");
-    } finally {
-      setLocalizando(false);
     }
   }, []);
 
@@ -118,7 +114,6 @@ export default function Home({ navigation }: any) {
         <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Pesquisa")} style={styles.search}>
           <Image source={require("../../assets/images/Search.png")} style={styles.searchIcon} />
           <Text style={styles.searchText}>Pesquise aqui</Text>
-          <Image source={require("../../assets/images/Mic.png")} style={styles.micIcon} />
         </Pressable>
       </View>
       <View style={styles.topActions}>
@@ -129,10 +124,6 @@ export default function Home({ navigation }: any) {
           <Image source={require("../../assets/images/Config.png")} style={styles.topIcon} />
         </Pressable>
       </View>
-
-      <Pressable accessibilityLabel="Centralizar na minha localização" onPress={() => void centralizarNaLocalizacao(true)} style={styles.locateButton}>
-        {localizando ? <ActivityIndicator color="#8b0000" size="small" /> : <Text style={styles.locateGlyph}>◎</Text>}
-      </Pressable>
 
       {erroMapa ? <Text style={styles.mapError}>{erroMapa}</Text> : null}
       <View style={[styles.bottomPanel, { bottom: insets.bottom }]}>
@@ -153,16 +144,13 @@ export default function Home({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { backgroundColor: "#e7e9ec", flex: 1 },
   map: { flex: 1 },
-  top: { left: 16, position: "absolute", right: 16, top: 32 },
+  top: { left: "12.5%", position: "absolute", top: 32, width: "75%" },
   search: { alignItems: "center", backgroundColor: "#fff", borderRadius: 26, elevation: 8, flexDirection: "row", minHeight: 40, paddingHorizontal: 12 },
   searchIcon: { height: 20, resizeMode: "contain", width: 20 },
   searchText: { color: "#111827", flex: 1, fontSize: 15, paddingLeft: 8 },
-  micIcon: { height: 21, resizeMode: "contain", width: 18 },
   topActions: { alignItems: "flex-end", gap: 7, position: "absolute", right: 18, top: 74 },
   roundButton: { alignItems: "center", backgroundColor: "#fff", borderRadius: 20, elevation: 7, height: 40, justifyContent: "center", width: 40 },
   topIcon: { height: 22, resizeMode: "contain", width: 22 },
-  locateButton: { alignItems: "center", backgroundColor: "#fff", borderRadius: 17, bottom: 122, elevation: 6, height: 34, justifyContent: "center", position: "absolute", right: 14, width: 34 },
-  locateGlyph: { color: "#8b0000", fontSize: 27, fontWeight: "700", lineHeight: 30 },
   mapError: { alignSelf: "center", backgroundColor: "#fff", borderRadius: 8, bottom: 145, color: "#b42318", fontSize: 11, padding: 7, position: "absolute" },
   bottomPanel: { alignItems: "center", backgroundColor: "#f8f8ff", bottom: 0, elevation: 12, flexDirection: "row", height: 118, justifyContent: "center", gap: 22, left: 0, paddingBottom: 4, position: "absolute", right: 0 },
   navButton: { alignItems: "center", backgroundColor: "#d1d5db", borderRadius: 33, elevation: 5, height: 66, justifyContent: "center", width: 66 },

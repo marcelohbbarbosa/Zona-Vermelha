@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,13 +15,14 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE, type Region } from "react-native-maps";
 import { ApiError, api } from "../services/api";
 import { temLinguagemPreconceituosa } from "../services/content-filter";
 
 type Coordenadas = { latitude: number; longitude: number };
+type LocalEncontrado = Coordenadas & { id: number | string; nome: string };
 type Status = "verde" | "amarelo" | "vermelho" | "sem_dados";
 type Categoria =
   | "assalto" | "infraestrutura" | "acidente" | "iluminacao" | "outro"
@@ -43,6 +45,15 @@ type Resumo = Coordenadas & {
   amarelos: number;
   vermelhos: number;
   relatos: Avaliacao[];
+};
+type CelulaMapa = Coordenadas & {
+  celulaLat: number;
+  celulaLng: number;
+  status: Status;
+  total: number;
+  verdes: number;
+  amarelos: number;
+  vermelhos: number;
 };
 
 const CENTRO_INICIAL: Region = {
@@ -102,7 +113,9 @@ function formatarData(valor: string) {
 }
 
 export default function AvaliacoesRegiao({ navigation, route }: any) {
+  const insets = useSafeAreaInsets();
   const mapaRef = useRef<MapView>(null);
+  const mapaExpandidoRef = useRef<MapView>(null);
   const scrollRef = useRef<ScrollViewInstance | null>(null);
   const comentarioY = useRef(0);
   const coordenadasIniciais = useMemo<Coordenadas | null>(() => {
@@ -111,6 +124,11 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
     return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
   }, [route?.params?.latitude, route?.params?.longitude]);
   const [local, setLocal] = useState<Coordenadas | null>(coordenadasIniciais);
+  const [regiaoMapa, setRegiaoMapa] = useState<Region>(() => coordenadasIniciais
+    ? { ...coordenadasIniciais, latitudeDelta: 0.009, longitudeDelta: 0.009 }
+    : CENTRO_INICIAL);
+  const [celulasMapa, setCelulasMapa] = useState<CelulaMapa[]>([]);
+  const [mapaExpandido, setMapaExpandido] = useState(false);
   const limitesZona = useMemo(() => {
     if (!local) return [];
     const tamanho = 0.004;
@@ -126,6 +144,9 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
     ];
   }, [local]);
   const [zona, setZona] = useState(typeof route?.params?.zona === "string" ? route.params.zona : "");
+  const [buscaAtiva, setBuscaAtiva] = useState(false);
+  const [resultadosBusca, setResultadosBusca] = useState<LocalEncontrado[]>([]);
+  const [buscandoLocais, setBuscandoLocais] = useState(false);
   const [permissaoNegada, setPermissaoNegada] = useState(false);
   const [corTagAtiva, setCorTagAtiva] = useState<"verde" | "amarelo" | "vermelho">("verde");
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<Categoria[]>([]);
@@ -140,7 +161,6 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
   const [usuarioId, setUsuarioId] = useState<number | null>(null);
   const [edicaoAlvo, setEdicaoAlvo] = useState<Avaliacao | null>(null);
   const [comentarioEdicao, setComentarioEdicao] = useState("");
-  const [zonaEdicao, setZonaEdicao] = useState("");
   const [tagsEdicao, setTagsEdicao] = useState<Categoria[]>([]);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const comentarioPreconceituoso = temLinguagemPreconceituosa(comentario);
@@ -222,6 +242,58 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
     if (local) mapaRef.current?.animateToRegion({ ...local, latitudeDelta: 0.009, longitudeDelta: 0.009 }, 350);
   }, [local]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const temporizador = setTimeout(async () => {
+      const norte = regiaoMapa.latitude + regiaoMapa.latitudeDelta / 2;
+      const sul = regiaoMapa.latitude - regiaoMapa.latitudeDelta / 2;
+      const leste = regiaoMapa.longitude + regiaoMapa.longitudeDelta / 2;
+      const oeste = regiaoMapa.longitude - regiaoMapa.longitudeDelta / 2;
+      try {
+        const dados = await api(
+          `/avaliacoes-mapa?norte=${norte}&sul=${sul}&leste=${leste}&oeste=${oeste}`,
+          { signal: controller.signal },
+        ) as CelulaMapa[];
+        setCelulasMapa(Array.isArray(dados) ? dados : []);
+      } catch {
+        if (!controller.signal.aborted) setCelulasMapa([]);
+      }
+    }, 350);
+    return () => {
+      clearTimeout(temporizador);
+      controller.abort();
+    };
+  }, [regiaoMapa]);
+
+  useEffect(() => {
+    if (!buscaAtiva || zona.trim().length < 3) {
+      setResultadosBusca([]);
+      setBuscandoLocais(false);
+      return;
+    }
+    let cancelado = false;
+    const controller = new AbortController();
+    const temporizador = setTimeout(async () => {
+      setBuscandoLocais(true);
+      try {
+        const locais = await api(
+          `/locais/buscar?q=${encodeURIComponent(zona.trim())}`,
+          { signal: controller.signal },
+        ) as LocalEncontrado[];
+        if (!cancelado) setResultadosBusca(Array.isArray(locais) ? locais : []);
+      } catch {
+        if (!cancelado) setResultadosBusca([]);
+      } finally {
+        if (!cancelado) setBuscandoLocais(false);
+      }
+    }, 850);
+    return () => {
+      cancelado = true;
+      clearTimeout(temporizador);
+      controller.abort();
+    };
+  }, [buscaAtiva, zona]);
+
   const salvar = async () => {
     if (!local) {
       Alert.alert("Escolha um local", "Use sua localização atual ou toque no mapa para escolher onde ocorreu o problema.");
@@ -292,7 +364,6 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
     const opcoes = TAGS.verde.concat(TAGS.amarelo, TAGS.vermelho);
     setEdicaoAlvo(item);
     setComentarioEdicao(item.comentario ?? "");
-    setZonaEdicao(item.zona ?? "");
     setTagsEdicao(opcoes.filter((opcao) => item.tags.some((tag) => tag.nome.toLocaleLowerCase("pt-BR") === opcao.titulo.toLocaleLowerCase("pt-BR"))).map((opcao) => opcao.id));
   };
 
@@ -303,7 +374,7 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
       await api(`/avaliacoes-regiao/${edicaoAlvo.id}`, {
         method: "PUT",
         autenticado: true,
-        body: { zona: zonaEdicao, tags: tagsEdicao, comentario: comentarioEdicao.trim() || null },
+        body: { tags: tagsEdicao, comentario: comentarioEdicao.trim() || null },
       });
       setEdicaoAlvo(null);
       if (local) await carregarResumo(local);
@@ -312,6 +383,77 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
       Alert.alert("Não foi possível editar", e.message || "Tente novamente em instantes.");
     } finally { setSalvandoEdicao(false); }
   };
+
+  const selecionarLocalBusca = (item: LocalEncontrado) => {
+    const ponto = { latitude: item.latitude, longitude: item.longitude };
+    setBuscaAtiva(false);
+    setResultadosBusca([]);
+    setZona(item.nome);
+    setLocal(ponto);
+    setRegiaoMapa({ ...ponto, latitudeDelta: 0.009, longitudeDelta: 0.009 });
+    Keyboard.dismiss();
+  };
+
+  const selecionarPontoMapa = (ponto: Coordenadas) => {
+    setBuscaAtiva(false);
+    setResultadosBusca([]);
+    Keyboard.dismiss();
+    setLocal(ponto);
+  };
+
+  const renderMapa = (expandido = false) => (
+    <View style={expandido ? styles.mapFullscreen : styles.mapFrame}>
+      <MapView
+        key={expandido ? "mapa-expandido" : "mapa-mini"}
+        ref={expandido ? mapaExpandidoRef : mapaRef}
+        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+        initialRegion={expandido ? regiaoMapa : local
+          ? { ...local, latitudeDelta: 0.009, longitudeDelta: 0.009 }
+          : CENTRO_INICIAL}
+        onRegionChangeComplete={setRegiaoMapa}
+        onPress={(event) => selecionarPontoMapa(event.nativeEvent.coordinate)}
+        showsUserLocation
+        style={styles.map}
+      >
+        {celulasMapa.map((celula) => {
+          const tamanho = 0.004;
+          const sul = celula.celulaLat * tamanho;
+          const oeste = celula.celulaLng * tamanho;
+          const norte = sul + tamanho;
+          const leste = oeste + tamanho;
+          return (
+            <Polygon
+              key={`celula-${celula.celulaLat}:${celula.celulaLng}`}
+              coordinates={[
+                { latitude: sul, longitude: oeste },
+                { latitude: sul, longitude: leste },
+                { latitude: norte, longitude: leste },
+                { latitude: norte, longitude: oeste },
+              ]}
+              fillColor={`${CORES[celula.status]}33`}
+              strokeColor={`${CORES[celula.status]}aa`}
+              strokeWidth={1}
+            />
+          );
+        })}
+        {local ? <>
+          <Polygon coordinates={limitesZona} fillColor="rgba(214,158,0,0.08)" strokeColor="rgba(214,158,0,0.9)" strokeWidth={2} />
+          <Marker coordinate={local} pinColor={CORES[resumo?.status ?? "sem_dados"]} title="Local selecionado" />
+        </> : null}
+      </MapView>
+      <View style={[styles.mapLegend, { top: expandido ? insets.top + 12 : 10 }]}>
+        <Text style={styles.mapLegendText}>🟢 Bem avaliada   🟡 Alerta   🔴 Risco</Text>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={expandido ? "Fechar mapa ampliado" : "Ampliar mapa"}
+        onPress={() => setMapaExpandido(!expandido)}
+        style={[styles.mapExpandButton, expandido && { bottom: Math.max(insets.bottom, 12) + 12 }]}
+      >
+        <Text style={styles.mapExpandButtonText}>{expandido ? "Voltar ao mapa" : "Ampliar mapa"}</Text>
+      </Pressable>
+    </View>
+  );
 
   const apagarAvaliacao = (item: Avaliacao) => {
     Alert.alert("Apagar sua avaliação?", "Ela será removida da região e não poderá ser recuperada.", [
@@ -352,31 +494,34 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
             <Text style={styles.locationButtonText}>Usar minha localização</Text>
           </Pressable>
         </View>
-        <Text style={styles.helper}>O mapa começa na sua posição. Toque em outro ponto para mudar. Cada zona cobre cerca de 400 m, em geral 4 a 8 quarteirões dependendo da região. Os relatos de outras zonas ficam separados.</Text>
+        <Text style={styles.helper}>O mapa começa na sua posição. Toque em outro ponto para mudar. Cada zona cobre cerca de 400 metros.</Text>
         <Text style={styles.zoneLabel}>Nome ou endereço da área avaliada</Text>
         <TextInput
+          autoCorrect={false}
+          autoCapitalize="words"
           maxLength={200}
-          onChangeText={setZona}
-          placeholder="Localizando rua e bairro..."
+          onChangeText={(valor) => {
+            setZona(valor);
+            setBuscaAtiva(true);
+          }}
+          onFocus={() => setBuscaAtiva(true)}
+          returnKeyType="search"
+          placeholder="Pesquise um endereço ou local..."
           placeholderTextColor="#77808c"
           style={styles.zoneInput}
           value={zona}
         />
-        <View style={styles.mapFrame}>
-          <MapView
-            ref={mapaRef}
-            provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
-            initialRegion={coordenadasIniciais ? { ...coordenadasIniciais, latitudeDelta: 0.009, longitudeDelta: 0.009 } : CENTRO_INICIAL}
-            onPress={(event) => setLocal(event.nativeEvent.coordinate)}
-            showsUserLocation
-            style={styles.map}
-          >
-            {local ? <>
-              <Polygon coordinates={limitesZona} fillColor="rgba(214,158,0,0.14)" strokeColor="rgba(214,158,0,0.75)" strokeWidth={2} />
-              <Marker coordinate={local} pinColor={CORES[resumo?.status ?? "sem_dados"]} title="Local selecionado" />
-            </> : null}
-          </MapView>
-        </View>
+        {buscandoLocais ? <ActivityIndicator color="#8b0000" style={styles.searchLoading} /> : null}
+        {resultadosBusca.length ? (
+          <View style={styles.searchResults}>
+            {resultadosBusca.map((item) => (
+              <Pressable key={item.id} onPress={() => selecionarLocalBusca(item)} style={styles.searchResult}>
+                <Text style={styles.searchResultText}>{item.nome}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+        {renderMapa()}
         {permissaoNegada ? <Text style={styles.helper}>A localização foi negada. Escolha o ponto manualmente no mapa.</Text> : null}
 
         <View style={styles.summaryCard}>
@@ -483,8 +628,18 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
         )) : <Text style={styles.empty}>Ainda não há relatos recentes. Você pode ser a primeira pessoa a avaliar este local.</Text>}
       </ScrollView>
       </KeyboardAvoidingView>
+      <Modal
+        visible={mapaExpandido}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        onShow={() => mapaExpandidoRef.current?.animateToRegion(regiaoMapa, 200)}
+        onRequestClose={() => setMapaExpandido(false)}
+      >
+        {renderMapa(true)}
+      </Modal>
       <Modal visible={Boolean(denunciaAlvo)} transparent animationType="fade" onRequestClose={() => setDenunciaAlvo(null)}>
-        <View style={styles.modalBackdrop}>
+        <View style={[styles.modalBackdrop, { paddingTop: Math.max(insets.top, 22), paddingBottom: Math.max(insets.bottom, 22) }]}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Denunciar comentário</Text>
             <Text style={styles.modalDescription}>Escolha o motivo. Uma denúncia por pessoa é permitida para cada comentário.</Text>
@@ -505,12 +660,13 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
         </View>
       </Modal>
       <Modal visible={Boolean(edicaoAlvo)} transparent animationType="slide" onRequestClose={() => setEdicaoAlvo(null)}>
-        <View style={styles.modalBackdrop}>
+        <View style={[styles.modalBackdrop, { paddingTop: Math.max(insets.top, 22), paddingBottom: Math.max(insets.bottom, 22) }]}>
           <View style={styles.editModalCard}>
             <Text style={styles.modalTitle}>Editar sua avaliação</Text>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              <Text style={styles.zoneLabel}>Área</Text>
-              <TextInput maxLength={200} onChangeText={setZonaEdicao} style={styles.zoneInput} value={zonaEdicao} />
+              <Text style={styles.zoneLabel}>Comentário</Text>
+              <TextInput maxLength={1000} multiline onChangeText={setComentarioEdicao} placeholder="Comentário (opcional)" placeholderTextColor="#77808c" style={styles.input} textAlignVertical="top" value={comentarioEdicao} />
+              {temLinguagemPreconceituosa(comentarioEdicao) ? <Text style={styles.erroConteudo}>Troque ou remova a expressão preconceituosa para salvar.</Text> : null}
               <Text style={styles.zoneLabel}>Tags (selecione várias, inclusive de cores diferentes)</Text>
               {(["verde", "amarelo", "vermelho"] as const).map((cor) => (
                 <View key={cor}>
@@ -523,8 +679,6 @@ export default function AvaliacoesRegiao({ navigation, route }: any) {
                   </View>
                 </View>
               ))}
-              <TextInput maxLength={1000} multiline onChangeText={setComentarioEdicao} placeholder="Comentário (opcional)" placeholderTextColor="#77808c" style={styles.input} textAlignVertical="top" value={comentarioEdicao} />
-              {temLinguagemPreconceituosa(comentarioEdicao) ? <Text style={styles.erroConteudo}>Troque ou remova a expressão preconceituosa para salvar.</Text> : null}
             </ScrollView>
             <View style={styles.modalActions}>
               <Pressable disabled={salvandoEdicao} onPress={() => setEdicaoAlvo(null)} style={styles.modalCancel}><Text style={styles.modalCancelText}>Cancelar</Text></Pressable>
@@ -554,8 +708,17 @@ const styles = StyleSheet.create({
   helper: { color: "#68717c", fontSize: 13, lineHeight: 19, marginBottom: 10 },
   zoneLabel: { color: "#505963", fontSize: 12, fontWeight: "700", marginBottom: 5 },
   zoneInput: { backgroundColor: "#fff", borderColor: "#dfe3e8", borderRadius: 10, borderWidth: 1, color: "#252a30", fontSize: 14, marginBottom: 10, minHeight: 42, paddingHorizontal: 12 },
+  searchLoading: { alignSelf: "flex-start", marginBottom: 8 },
+  searchResults: { backgroundColor: "#fff", borderColor: "#dfe3e8", borderRadius: 10, borderWidth: 1, marginBottom: 10, overflow: "hidden" },
+  searchResult: { borderBottomColor: "#e9ebef", borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 42, justifyContent: "center", paddingHorizontal: 12, paddingVertical: 8 },
+  searchResultText: { color: "#252a30", fontSize: 13 },
   mapFrame: { borderRadius: 18, height: 250, overflow: "hidden" },
+  mapFullscreen: { backgroundColor: "#e5e5e5", flex: 1, overflow: "hidden" },
   map: { flex: 1 },
+  mapExpandButton: { position: "absolute", bottom: 10, right: 10, backgroundColor: "#fff", borderColor: "#dfe3e8", borderWidth: 1, borderRadius: 18, elevation: 5, paddingHorizontal: 13, paddingVertical: 9 },
+  mapExpandButtonText: { color: "#8b0000", fontSize: 12, fontWeight: "800" },
+  mapLegend: { position: "absolute", left: 10, backgroundColor: "rgba(255,255,255,0.94)", borderRadius: 9, paddingHorizontal: 10, paddingVertical: 8 },
+  mapLegendText: { color: "#252a30", fontSize: 12, fontWeight: "700" },
   summaryCard: { alignItems: "center", backgroundColor: "#fff", borderRadius: 14, flexDirection: "row", marginTop: 14, padding: 14 },
   statusDot: { borderRadius: 10, height: 18, marginRight: 11, width: 18 },
   summaryText: { flex: 1 },

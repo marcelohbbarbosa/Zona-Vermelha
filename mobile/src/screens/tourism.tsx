@@ -148,10 +148,6 @@ export default function Turismo({ navigation }: any) {
         <Pressable accessibilityLabel="Voltar ao mapa" hitSlop={10} onPress={() => navigation.goBack()} style={styles.voltar}>
           <Image source={imagens.voltar} style={styles.iconeVoltar} />
         </Pressable>
-        <View style={styles.busca}>
-          <Image source={imagens.busca} style={styles.iconeBusca} />
-          <Text style={styles.textoBusca}>Pontos turísticos</Text>
-        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -212,9 +208,6 @@ const styles = StyleSheet.create({
   cabecalho: { alignItems: "center", flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 18 },
   voltar: { alignItems: "center", backgroundColor: "#fff", borderRadius: 21, elevation: 7, height: 42, justifyContent: "center", width: 42 },
   iconeVoltar: { height: 22, resizeMode: "contain", width: 22 },
-  busca: { alignItems: "center", backgroundColor: "#fff", borderRadius: 26, elevation: 8, flex: 1, flexDirection: "row", minHeight: 50, paddingHorizontal: 14 },
-  iconeBusca: { height: 20, resizeMode: "contain", width: 20 },
-  textoBusca: { color: "#6b7280", flex: 1, fontSize: 16, paddingLeft: 8 },
   conteudo: { gap: 12, padding: 20, paddingBottom: 36 },
   titulo: { color: "#1f2937", fontSize: 23, fontWeight: "800", marginTop: 8 },
   descricao: { color: "#6b7280", fontSize: 14, lineHeight: 20 },

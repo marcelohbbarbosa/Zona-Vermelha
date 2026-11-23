@@ -19,6 +19,9 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 import * as Location from "expo-location";
 import { File, Paths } from "expo-file-system";
+import * as FileSystemLegacy from "expo-file-system/legacy";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 
 import MapView, {
   Marker,
@@ -85,6 +88,17 @@ const formatarData = (valor?: string | null) => {
   return Number.isNaN(data.getTime()) ? "—" : data.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 };
 
+const escaparHtml = (valor: string) => valor.replace(/[&<>"']/g, (caractere) => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+})[caractere] ?? caractere);
+
+const nomeArquivoSeguro = (valor: string) => valor
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-zA-Z0-9-]+/g, "-")
+  .replace(/^-+|-+$/g, "")
+  .slice(0, 48) || "rota";
+
 function celulasDeRisco(riscos: RiscoRota["risks"] = []) {
   const celulas = new Map<string, { latitude: number; longitude: number; level: number; count: number; label: string }>();
   for (const risco of riscos ?? []) {
@@ -135,6 +149,7 @@ export default function Rotas({ navigation, route }: any) {
   const [carregandoRotasSalvas, setCarregandoRotasSalvas] = useState(true);
   const [erroRotasSalvas, setErroRotasSalvas] = useState("");
   const [rotasSalvasExpandidas, setRotasSalvasExpandidas] = useState(false);
+  const [apagandoRotaId, setApagandoRotaId] = useState<number | null>(null);
   const [recalculandoRotaId, setRecalculandoRotaId] = useState<number | null>(null);
   const [campoAtivo, setCampoAtivo] = useState<"origem" | "destino" | null>(
     null,
@@ -169,6 +184,32 @@ export default function Rotas({ navigation, route }: any) {
     } finally {
       setCarregandoRotasSalvas(false);
     }
+  };
+
+  const confirmarExclusaoRotaSalva = (rotaSalva: RotaSalva) => {
+    Alert.alert("Apagar rota salva?", `A rota “${rotaSalva.nome}” será removida da sua conta.`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Apagar",
+        style: "destructive",
+        onPress: () => void (async () => {
+          setApagandoRotaId(rotaSalva.id);
+          try {
+            await api(`/rotas/salvas/${rotaSalva.id}`, { method: "DELETE", autenticado: true });
+            setRotasSalvas((atuais) => atuais.filter((item) => item.id !== rotaSalva.id));
+            if (rotaSalvaId === rotaSalva.id) {
+              setRotaSalvaId(null);
+              setRotaBaixada(false);
+              setBaixadaEm(null);
+            }
+          } catch (erro: any) {
+            Alert.alert("Não foi possível apagar", erro.message || "Tente novamente em instantes.");
+          } finally {
+            setApagandoRotaId(null);
+          }
+        })(),
+      },
+    ]);
   };
 
   useEffect(() => { void carregarRotasSalvas(); }, []);
@@ -294,6 +335,48 @@ export default function Rotas({ navigation, route }: any) {
     setRotaBaixada(false);
     setErroBusca("");
     setAvisoRota("");
+  };
+
+  const exportarRotaPdf = async (rota: ResultadoRota, id: number) => {
+    const nomeRota = `${origem} → ${destino}`;
+    const nomeBase = `Zona-Vermelha-${nomeArquivoSeguro(origem)}-para-${nomeArquivoSeguro(destino)}-${new Date().toISOString().slice(0, 10)}`;
+    const risco = rota.risco;
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><style>
+      body{font-family:Arial,sans-serif;color:#252932;padding:28px;line-height:1.5}
+      h1{color:#920000;font-size:24px;margin-bottom:4px}h2{font-size:16px;margin:24px 0 6px}
+      .muted{color:#667085}.card{background:#f3f4f6;padding:14px 16px;border-radius:10px;margin:12px 0}
+      .risk{color:#920000;font-weight:bold}.footer{margin-top:32px;font-size:11px;color:#667085}
+    </style></head><body>
+      <h1>Zona Vermelha · Rota</h1><div class="muted">${escaparHtml(formatarData(rota.calculadaEm))}</div>
+      <div class="card"><strong>Origem</strong><br/>${escaparHtml(origem)}<br/><br/><strong>Destino</strong><br/>${escaparHtml(destino)}</div>
+      <h2>Resumo do trajeto</h2><div class="card">Distância: ${(rota.distancia / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km<br/>Duração estimada: ${Math.max(1, Math.round(rota.duracao / 60))} min<br/>Pontos do trajeto: ${rota.coordenadas.length}</div>
+      ${risco ? `<h2>Avaliação de risco</h2><div class="card">Pontuação: ${Number(risco.riskScore ?? 0)} · ${Number(risco.redCount ?? 0)} área(s) de risco e ${Number(risco.yellowCount ?? 0)} alerta(s)</div>` : ""}
+      ${rota.aviso ? `<div class="card risk">${escaparHtml(rota.aviso)}</div>` : ""}
+      <div class="footer">Rota para consulta. Condições e estimativas podem mudar durante o deslocamento.</div>
+    </body></html>`;
+    const pdf = await Print.printToFileAsync({ html });
+
+    if (Platform.OS === "android") {
+      const { StorageAccessFramework, EncodingType } = FileSystemLegacy;
+      const permissao = await StorageAccessFramework.requestDirectoryPermissionsAsync(
+        StorageAccessFramework.getUriForDirectoryInRoot("Download"),
+      );
+      if (!permissao.granted) return false;
+      const destinoPdf = await StorageAccessFramework.createFileAsync(
+        permissao.directoryUri,
+        `${nomeBase}-rota-${id}`,
+        "application/pdf",
+      );
+      const conteudo = await FileSystemLegacy.readAsStringAsync(pdf.uri, { encoding: EncodingType.Base64 });
+      await StorageAccessFramework.writeAsStringAsync(destinoPdf, conteudo, { encoding: EncodingType.Base64 });
+    } else {
+      await Sharing.shareAsync(pdf.uri, {
+        mimeType: "application/pdf",
+        dialogTitle: `Salvar ${nomeRota}`,
+        UTI: "com.adobe.pdf",
+      });
+    }
+    return true;
   };
 
   const selecionarAlternativa = (alternativa: AlternativaRota, aviso?: string, limiteDesvio = false, manterRotaSalva = false, calculadaEm = new Date().toISOString()) => {
@@ -478,6 +561,11 @@ export default function Rotas({ navigation, route }: any) {
         calculadaEm: dados.generatedAt || new Date().toISOString(),
       };
       setResultadoRota(atualizada);
+      const pdfSalvo = await exportarRotaPdf(atualizada, rotaSalvaId);
+      if (!pdfSalvo) {
+        Alert.alert("Download cancelado", "A rota atualizada não foi exportada. A versão offline anterior foi mantida.");
+        return;
+      }
       const agora = new Date().toISOString();
       const arquivo = new File(Paths.document, `rota-${rotaSalvaId}.json`);
       await arquivo.write(JSON.stringify({ id: rotaSalvaId, nome: `${origem} → ${destino}`, origem, destino, origin: origemAtual, destination: destinoAtual, route: { ...atualizada, baixadaEm: agora }, calculadaEm: atualizada.calculadaEm, baixadaEm: agora, avoidYellow: evitarAmarelas, avoidRed: evitarVermelhas }));
@@ -486,7 +574,7 @@ export default function Rotas({ navigation, route }: any) {
       setBaixadaEm(agora);
       setRotasSalvas((rotas) => rotas.map((rota) => rota.id === rotaSalvaId ? { ...rota, disponivelOffline: true } : rota));
       setTimeout(() => mapaRef.current?.fitToCoordinates(atualizada.coordenadas, { edgePadding: { top: 55, right: 45, bottom: 55, left: 45 }, animated: true }), 250);
-      Alert.alert("Rota atualizada", "O arquivo baixado foi substituído pelo trajeto mais recente.");
+      Alert.alert("Rota atualizada", "O PDF atualizado foi exportado e a rota também está disponível offline no app.");
     } catch (erro: any) {
       Alert.alert("Não foi possível atualizar", erro.message || "Confira sua conexão e tente novamente.");
     } finally {
@@ -624,6 +712,11 @@ export default function Rotas({ navigation, route }: any) {
     setBaixandoRota(true);
     try {
       const agora = new Date().toISOString();
+      const pdfSalvo = await exportarRotaPdf(resultadoRota, rotaSalvaId);
+      if (!pdfSalvo) {
+        Alert.alert("Download cancelado", "Escolha uma pasta para salvar o PDF da rota.");
+        return;
+      }
       const arquivo = new File(Paths.document, `rota-${rotaSalvaId}.json`);
       await arquivo.write(JSON.stringify({
         id: rotaSalvaId,
@@ -642,7 +735,7 @@ export default function Rotas({ navigation, route }: any) {
       setRotaBaixada(true);
       setBaixadaEm(agora);
       setRotasSalvas((rotas) => rotas.map((rota) => rota.id === rotaSalvaId ? { ...rota, disponivelOffline: true } : rota));
-      Alert.alert("Rota baixada", "Ela foi armazenada no dispositivo para consulta offline.");
+      Alert.alert("Rota baixada", "O PDF foi salvo na pasta escolhida e a rota também está disponível offline no app.");
     } catch (erro: any) {
       Alert.alert("Não foi possível baixar", erro.message || "Tente novamente quando estiver conectado.");
     } finally {
@@ -756,6 +849,9 @@ export default function Rotas({ navigation, route }: any) {
                 {rotaSalva.disponivelOffline ? <Pressable onPress={() => void visualizarRotaBaixada(rotaSalva)} style={styles.recalcularSalva}><Text style={styles.textoBotaoRota}>Ver baixada</Text></Pressable> : null}
                 <Pressable disabled={recalculandoRotaId !== null} onPress={() => void recalcularRotaSalva(rotaSalva)} style={styles.recalcularSalva}>
                   {recalculandoRotaId === rotaSalva.id ? <ActivityIndicator color="#8b0000" size="small" /> : <Text style={styles.textoBotaoRota}>Recalcular</Text>}
+                </Pressable>
+                <Pressable accessibilityRole="button" disabled={apagandoRotaId !== null} onPress={() => confirmarExclusaoRotaSalva(rotaSalva)} style={[styles.apagarRotaSalva, apagandoRotaId === rotaSalva.id && styles.botaoDesativado]}>
+                  {apagandoRotaId === rotaSalva.id ? <ActivityIndicator color="#b42318" size="small" /> : <Text style={styles.textoApagarRota}>Apagar</Text>}
                 </Pressable>
               </View>
             </View>
@@ -954,7 +1050,7 @@ export default function Rotas({ navigation, route }: any) {
               <View>
                 <Text style={styles.salvoInfo}>Rota salva na sua conta.</Text>
                 <Pressable disabled={baixandoRota} onPress={() => rotaBaixada ? void atualizarRotaSalva() : void baixarRota()} style={[styles.botaoBaixar, baixandoRota && styles.botaoDesativado]}>
-                  {baixandoRota ? <ActivityIndicator color="#fff" /> : <Text style={styles.textoBotaoCriar}>{rotaBaixada ? "Atualizar rota baixada" : "Baixar rota salva"}</Text>}
+                  {baixandoRota ? <ActivityIndicator color="#fff" /> : <Text style={styles.textoBotaoCriar}>{rotaBaixada ? "Exportar PDF atualizado" : "Baixar rota em PDF"}</Text>}
                 </Pressable>
                 {rotaBaixada ? <Pressable onPress={() => setMapaExpandido(true)} style={styles.botaoExpandirInline}><Text style={styles.textoBotaoRota}>Visualizar rota ampliada</Text></Pressable> : null}
               </View>
@@ -1074,6 +1170,8 @@ const styles = StyleSheet.create({
   rotaOffline: { color: "#24823b", fontSize: 11, fontWeight: "700", marginTop: 3 },
   acoesRotaSalva: { alignItems: "flex-end", gap: 6 },
   recalcularSalva: { alignItems: "center", borderColor: "#8b0000", borderRadius: 16, borderWidth: 1, justifyContent: "center", minHeight: 34, minWidth: 82, paddingHorizontal: 8 },
+  apagarRotaSalva: { alignItems: "center", borderColor: "#b42318", borderRadius: 16, borderWidth: 1, justifyContent: "center", minHeight: 34, minWidth: 82, paddingHorizontal: 8 },
+  textoApagarRota: { color: "#b42318", fontSize: 11, fontWeight: "800" },
   textoBotaoRota: { color: "#8b0000", fontSize: 11, fontWeight: "800" },
   entrarSalvas: { alignSelf: "flex-start", borderColor: "#8b0000", borderRadius: 16, borderWidth: 1, marginTop: 8, paddingHorizontal: 14, paddingVertical: 7 },
   verMaisRotas: { alignItems: "center", borderTopColor: "#e5e7eb", borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11 },

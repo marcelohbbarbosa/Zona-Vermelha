@@ -20,21 +20,46 @@ function dentroDaBaixadaSantista(value: Coord) {
 async function scoreGeometry(geometry: unknown, preferences: Preferencias) {
   const result = await pool.query(
     `WITH route AS (
-       SELECT ST_SetSRID(ST_GeomFromGeoJSON($1), 4326)::geography AS geom
+       SELECT ST_SetSRID(ST_GeomFromGeoJSON($1), 4326) AS geom
+     ), tagged AS (
+       SELECT FLOOR(ST_Y(c.localizacao::geometry) / 0.004)::INTEGER AS "celulaLat",
+              FLOOR(ST_X(c.localizacao::geometry) / 0.004)::INTEGER AS "celulaLng",
+              c.zona, cat.nivel
+       FROM comentarios c
+       JOIN comentario_categoria cc ON cc.id_comentario = c.id
+       JOIN categorias cat ON cat.id = cc.id_categoria
+       WHERE c.localizacao IS NOT NULL
+         AND c.removido = FALSE
+         AND c.data >= NOW() - INTERVAL '90 days'
+         AND cat.nivel IN (1, 2, 3)
+     ), cells AS (
+       SELECT "celulaLat", "celulaLng",
+              COUNT(*) FILTER (WHERE nivel = 1)::INTEGER AS verdes,
+              COUNT(*) FILTER (WHERE nivel = 2)::INTEGER AS amarelos,
+              COUNT(*) FILTER (WHERE nivel = 3)::INTEGER AS vermelhos,
+              COUNT(*)::INTEGER AS total,
+              MIN(zona) AS zona
+       FROM tagged
+       GROUP BY "celulaLat", "celulaLng"
+     ), scored AS (
+       SELECT *, (verdes * 2.0 - amarelos - vermelhos * 2.0) / NULLIF(total, 0) AS pontuacao
+       FROM cells
      )
-     SELECT DISTINCT c.id AS "commentId", c.zona, cat.id AS "tagId", cat.nome AS category,
-            cat.nivel AS level, c.data AS "reportedAt",
-            ST_Y(c.localizacao::geometry) AS latitude,
-            ST_X(c.localizacao::geometry) AS longitude
-     FROM route r
-     JOIN comentarios c ON c.localizacao IS NOT NULL
-       AND c.removido = FALSE
-       AND c.data >= NOW() - INTERVAL '90 days'
-       AND ST_DWithin(c.localizacao, r.geom, 100)
-     JOIN comentario_categoria cc ON cc.id_comentario = c.id
-     JOIN categorias cat ON cat.id = cc.id_categoria
-     WHERE cat.nivel IN (2, 3)
-     ORDER BY c.data DESC`,
+     SELECT NULL::INTEGER AS "commentId", zona,
+            CASE WHEN pontuacao <= -1.5 THEN 'Zona vermelha' ELSE 'Zona amarela' END AS category,
+            CASE WHEN pontuacao <= -1.5 THEN 3 ELSE 2 END AS level,
+            ("celulaLat" + 0.5) * 0.004 AS latitude,
+            ("celulaLng" + 0.5) * 0.004 AS longitude
+     FROM scored s
+     CROSS JOIN route r
+     WHERE (vermelhos > 0 OR amarelos > 0)
+       AND (pontuacao <= -1.5 OR pontuacao < 0.75)
+       AND ST_Intersects(
+         r.geom,
+         ST_MakeEnvelope("celulaLng" * 0.004, "celulaLat" * 0.004,
+                         ("celulaLng" + 1) * 0.004, ("celulaLat" + 1) * 0.004, 4326)
+       )
+     ORDER BY level DESC`,
     [JSON.stringify(geometry)],
   );
   const risks = result.rows;
